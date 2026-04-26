@@ -1187,7 +1187,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && path === "/privacy/graph/export") {
-      json(res, 200, await readJsonBody(req));
+      json(res, 410, { error: "Raw local graph export is device-only; the API will not receive private graph data." });
       return;
     }
 

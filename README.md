@@ -53,7 +53,6 @@ Required live endpoints:
 - `POST /redemptions/:tokenId/validate`
 - `GET /merchants/:merchantId/analytics`
 - `GET /connectors/health`
-- `POST /privacy/graph/export`
 - `DELETE /privacy/graph`
 
 Required local Gemma endpoint through Ollama:
@@ -145,4 +144,4 @@ DSV Gruppe, as part of the German Savings Banks Financial Group, sits at the int
 
 The local graph represents raw habits, offer history, movement, and preferences. The cloud-agent path receives only abstract intent, coarse city context, merchant category, and non-personal context signals.
 
-For GDPR, the intended posture is explicit consent, on-device inference for raw behavior, data minimization before cloud calls, user-visible graph controls, export/delete actions, and aggregate-only merchant analytics.
+For GDPR, the intended posture is explicit consent, on-device inference for raw behavior, data minimization before cloud calls, user-visible graph controls, device-only export/delete actions, and aggregate-only merchant analytics.

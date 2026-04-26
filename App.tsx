@@ -4363,7 +4363,7 @@ function KnowledgeGraphScreen({
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Privacy Controls</Text>
-        <Text style={styles.muted}>Inspect, pause, export, or delete the local graph that Gemma uses.</Text>
+        <Text style={styles.muted}>Inspect, pause, export, or delete the local graph that Gemma uses. Export stays on this device and is never posted to the City Wallet API.</Text>
         <View style={styles.row}>
           <TouchableOpacity style={styles.primaryButtonFlex} onPress={() => onPauseGraph(!graphPaused)}>
             <Text style={styles.primaryButtonText}>{graphPaused ? "Resume graph" : "Pause graph"}</Text>

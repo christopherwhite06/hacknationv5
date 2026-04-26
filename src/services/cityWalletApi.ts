@@ -130,11 +130,7 @@ export const syncGoogleCalendar = (userId: string, accessToken?: string) =>
     body: JSON.stringify({ userId, accessToken })
   });
 
-export const exportKnowledgeGraph = (graph: LocalKnowledgeGraph) =>
-  requestJson<LocalKnowledgeGraph>("/privacy/graph/export", {
-    method: "POST",
-    body: JSON.stringify(graph)
-  });
+export const exportKnowledgeGraph = async (graph: LocalKnowledgeGraph) => graph;
 
 export const deleteKnowledgeGraph = () =>
   requestJson<{ deleted: true }>("/privacy/graph", {

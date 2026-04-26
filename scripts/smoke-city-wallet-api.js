@@ -139,6 +139,19 @@ const main = async () => {
       throw new Error(`Expected daily redemption cap rejection, got ${overCapResponse.status}: ${await overCapResponse.text()}`);
     }
 
+    const graphExportResponse = await fetch(`${baseUrl}/privacy/graph/export`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ nodes: [{ id: "private", label: "private habit" }], edges: [] })
+    });
+
+    if (graphExportResponse.status !== 410) {
+      throw new Error(`Expected private graph export rejection, got ${graphExportResponse.status}: ${await graphExportResponse.text()}`);
+    }
+
     const validated = await requestJson(`/redemptions/${encodeURIComponent(token.id)}/validate`, {
       method: "POST",
       body: JSON.stringify({ merchantId })
