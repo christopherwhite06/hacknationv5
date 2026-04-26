@@ -13,6 +13,7 @@ npm run smoke:full
 The smoke test must confirm:
 
 - Demo Payone demand and demo merchant campaigns are labelled as degraded/demo connectors.
+- Open-Meteo, Royal Holloway events, and OpenStreetMap show adapter-ready/degraded status until live context loading exercises them.
 - Hermes/Gemini and Local Gemma show adapter-ready/degraded status unless a live runtime is actually probed.
 - Stuttgart does not reuse Royal Holloway event data before a Stuttgart event adapter is configured.
 - Duplicate accounts, wrong passwords, and zero-value merchant rules are rejected before the demo flow starts.
