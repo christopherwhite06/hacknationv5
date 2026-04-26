@@ -1430,6 +1430,25 @@ export default function App() {
 
         {screen === "map" && !context && !liveSetupError && <Text style={styles.loading}>Loading live city context...</Text>}
 
+        {screen === "demo" && (
+          <DemoJourneyScreen
+            accountType={account.accountType}
+            agentStatus={agentStatus}
+            analytics={analytics}
+            connectorHealth={connectorHealth}
+            context={context}
+            liveSetupError={liveSetupError}
+            merchant={merchant}
+            offer={offer}
+            token={token}
+            onAcceptOffer={acceptOffer}
+            onOpenMap={() => setScreen("map")}
+            onOpenMerchant={() => setScreen("merchant")}
+            onOpenOffer={() => setScreen("offer")}
+            onRedeemOffer={redeemOffer}
+          />
+        )}
+
         {screen === "graph" && localGraph && (
           <KnowledgeGraphScreen
             graph={localGraph}
@@ -2211,6 +2230,203 @@ function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
         <Text style={styles.primaryButtonText}>Start Spark City Wallet</Text>
       </TouchableOpacity>
     </ScrollView>
+  );
+}
+
+function DemoJourneyScreen({
+  accountType,
+  agentStatus,
+  analytics,
+  connectorHealth,
+  context,
+  liveSetupError,
+  merchant,
+  offer,
+  token,
+  onAcceptOffer,
+  onOpenMap,
+  onOpenMerchant,
+  onOpenOffer,
+  onRedeemOffer
+}: {
+  accountType: AccountType;
+  agentStatus: string;
+  analytics?: MerchantAnalytics;
+  connectorHealth: ConnectorHealth[];
+  context?: ContextState;
+  liveSetupError?: string;
+  merchant?: Merchant;
+  offer?: GeneratedOffer;
+  token?: RedemptionToken;
+  onAcceptOffer: () => void;
+  onOpenMap: () => void;
+  onOpenMerchant: () => void;
+  onOpenOffer: () => void;
+  onRedeemOffer: () => void;
+}) {
+  const { styles } = useThemeKit();
+  const tokenReady = token?.status === "issued" || token?.status === "validated";
+  const merchantRule = merchant?.rules[0];
+  const blocker =
+    liveSetupError ||
+    (!context ? "Live context has not loaded yet." : undefined) ||
+    (!merchant ? "No real nearby merchant is currently ranked inside the geofence." : undefined) ||
+    (!merchantRule ? "No merchant-supplied or labelled demo campaign rule is active for the ranked merchant." : undefined) ||
+    (!offer ? "No generated offer is available yet. Spark will not show a static fallback offer." : undefined);
+  const activeConnectors = connectorHealth.filter((connector) => connector.status !== "not_configured");
+  const configuredConnectorCount = activeConnectors.length || connectorHealth.length;
+  const demoConnectorText = connectorHealth
+    .filter((connector) => /demo|payone/i.test(connector.name) || /demo/i.test(connector.detail))
+    .map((connector) => `${connector.name}: ${connector.detail}`);
+
+  const journeySteps = [
+    {
+      title: "Context detection",
+      status: context ? "ready" : "config needed",
+      body: context?.compositeState || blocker || "Waiting for live GPS, weather, OSM places, time and event signals."
+    },
+    {
+      title: "Generated offer",
+      status: offer ? "ready" : "blocked",
+      body: offer
+        ? `${offer.title} at ${merchant?.name || "ranked merchant"} from rule ${offer.ruleId}.`
+        : "Offer generation waits for real context, a ranked merchant, a real deal insight and merchant guardrails."
+    },
+    {
+      title: "Accept or decline",
+      status: offer ? "ready" : "blocked",
+      body: offer
+        ? "Accept creates a one-time checkout token; dismiss updates aggregate merchant analytics."
+        : "No action is shown until Spark has a generated offer."
+    },
+    {
+      title: "QR/token redemption",
+      status: tokenReady ? token.status : "pending",
+      body: token
+        ? `Token ${token.id} is ${token.status} and expires at ${new Date(token.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`
+        : "Accept the generated offer to issue a QR/token through the local redemption API."
+    },
+    {
+      title: "Merchant analytics",
+      status: analytics ? "ready" : "waiting",
+      body: analytics
+        ? `${analytics.impressions} impressions, ${analytics.accepts} accepts, ${analytics.declines} declines, ${analytics.redemptions} redemptions.`
+        : "Analytics appears after a merchant and generated offer are active."
+    }
+  ];
+
+  return (
+    <>
+      <View style={styles.card}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.listTextWrap}>
+            <Text style={styles.sectionTitle}>Hackathon Demo Readiness</Text>
+            <Text style={styles.caption}>
+              End-to-end loop from context detection to generated offer, QR/token redemption and merchant analytics.
+            </Text>
+          </View>
+          <Text style={styles.statusBadge}>{accountType === "business" ? "Business" : "Customer"}</Text>
+        </View>
+        <Text style={styles.signalPill}>{agentStatus}</Text>
+        {blocker ? (
+          <Text style={styles.muted}>Current blocker: {blocker}</Text>
+        ) : (
+          <Text style={styles.successText}>The full live/demo-labelled redemption loop is ready to show.</Text>
+        )}
+        <View style={styles.row}>
+          <TouchableOpacity style={styles.secondaryButtonFlex} onPress={onOpenMap}>
+            <Text style={styles.secondaryButtonText}>Open live map</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.primaryButtonFlex, !offer && styles.buttonDisabled]}
+            disabled={!offer}
+            onPress={onOpenOffer}
+          >
+            <Text style={styles.primaryButtonText}>View offer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Loop Progress</Text>
+        {journeySteps.map((step, index) => (
+          <View key={step.title} style={styles.ledgerRow}>
+            <View style={styles.listTextWrap}>
+              <Text style={styles.ruleLine}>{index + 1}. {step.title}</Text>
+              <Text style={styles.caption}>{step.body}</Text>
+            </View>
+            <Text style={styles.statusBadge}>{step.status}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Visible Source Evidence</Text>
+        {context?.sourceEvidence.length ? (
+          context.sourceEvidence.map((evidence) => (
+            <View key={`${evidence.category}-${evidence.source}`} style={styles.ledgerRow}>
+              <View style={styles.listTextWrap}>
+                <Text style={styles.ruleLine}>{evidence.category}: {evidence.label}</Text>
+                <Text style={styles.caption}>{evidence.source}</Text>
+              </View>
+              <Text style={styles.statusBadge}>{evidence.status.replaceAll("_", " ")}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.muted}>
+            Source labels appear after live context loads. Missing credentials are shown as unavailable or config-needed, not invented.
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Offer UX Requirements</Text>
+        <Metric label="Channel" value={offer?.channel.replaceAll("_", " ") || "Waiting for generated offer"} />
+        <Metric label="Tone" value={offer?.emotionalFrame || merchantRule?.brandTone || "Set by generated context and merchant rule"} />
+        <Metric label="First 3 seconds" value={offer?.firstThreeSecondFacts.slice(0, 3).join(" | ") || "merchant | product | rate"} />
+        <Metric
+          label="Ends by"
+          value={offer ? `expires ${new Date(offer.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}, accept, or dismiss` : "expiry/accept/dismiss after generation"}
+        />
+        {offer && (
+          <View style={styles.row}>
+            <TouchableOpacity style={styles.primaryButtonFlex} onPress={onAcceptOffer}>
+              <Text style={styles.primaryButtonText}>Accept and issue QR</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.secondaryButton, !tokenReady && styles.buttonDisabled]}
+              disabled={!tokenReady}
+              onPress={onRedeemOffer}
+            >
+              <Text style={styles.secondaryButtonText}>Redeem token</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Merchant Readiness</Text>
+        <Metric label="Merchant" value={merchant?.name || "No ranked merchant"} />
+        <Metric label="Rule source" value={merchantRule?.source === "demo" ? "labelled demo connector" : merchantRule ? "merchant supplied" : "config needed"} />
+        <Metric label="Rule guardrail" value={merchantRule ? `${merchantRule.goal.replaceAll("_", " ")} up to ${merchantRule.maxDiscountPercent}%` : "No active rule"} />
+        <Metric label="Accept rate" value={`${Math.round((analytics?.acceptRate ?? 0) * 100)}%`} />
+        <TouchableOpacity style={styles.secondaryButton} onPress={onOpenMerchant}>
+          <Text style={styles.secondaryButtonText}>Open merchant dashboard</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Reality and Privacy Check</Text>
+        <Text style={styles.bullet}>- Configured connectors visible: {configuredConnectorCount}</Text>
+        <Text style={styles.bullet}>- Private graph, preferences, routine and precise movement history stay local.</Text>
+        <Text style={styles.bullet}>- Cloud/Hermes/Gemini receives only abstract intent plus public context and merchant facts.</Text>
+        {demoConnectorText.length ? (
+          demoConnectorText.map((item) => <Text key={item} style={styles.bullet}>- Demo-labelled: {item}</Text>)
+        ) : (
+          <Text style={styles.bullet}>- No demo connector is currently reporting as enabled.</Text>
+        )}
+      </View>
+    </>
   );
 }
 
