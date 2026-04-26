@@ -99,6 +99,8 @@ The smoke test starts `server/dev-api.js` on an isolated local port with clearly
 
 For emulator inspection, use the `Demo` tab as the judge-facing checklist, then test Egham/Stuttgart/current GPS from `Map` -> `Simulate`.
 
+For the full judge-day checklist, see `DEMO_RUNBOOK.md`.
+
 ## Demo Flow
 
 1. Open the `Map` tab to see Google Maps and Spark's generated deal popup.
