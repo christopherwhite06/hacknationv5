@@ -1380,7 +1380,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "DELETE" && path === "/privacy/graph") {
-      json(res, 200, { deleted: true });
+      json(res, 410, { error: "Raw local graph delete is device-only; the API cannot delete private graph data it never receives." });
       return;
     }
 

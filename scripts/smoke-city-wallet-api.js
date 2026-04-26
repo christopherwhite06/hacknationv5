@@ -509,6 +509,15 @@ const main = async () => {
     if (graphExportResponse.status !== 410) {
       throw new Error(`Expected private graph export rejection, got ${graphExportResponse.status}: ${await graphExportResponse.text()}`);
     }
+    const graphDeleteResponse = await fetch(`${baseUrl}/privacy/graph`, {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json"
+      }
+    });
+    if (graphDeleteResponse.status !== 410) {
+      throw new Error(`Expected private graph delete rejection, got ${graphDeleteResponse.status}: ${await graphDeleteResponse.text()}`);
+    }
 
     const tamperedPayloadResponse = await fetch(`${baseUrl}/redemptions/${encodeURIComponent(token.id)}/validate`, {
       method: "POST",

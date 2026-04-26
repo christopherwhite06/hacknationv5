@@ -53,7 +53,7 @@ Required live endpoints:
 - `POST /redemptions/:tokenId/validate`
 - `GET /merchants/:merchantId/analytics`
 - `GET /connectors/health`
-- `DELETE /privacy/graph`
+- `POST /privacy/graph/export` and `DELETE /privacy/graph` reject raw graph handling because export/delete are device-only
 
 Required local Gemma endpoint through Ollama:
 
