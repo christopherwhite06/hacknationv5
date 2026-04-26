@@ -935,6 +935,11 @@ export default function App() {
         await saveLocalKnowledgeGraph(graph, ownerId);
         setLocalGraph(graph);
       }
+      setAgentStatus(
+        graphPaused
+          ? "Checkout token issued; private graph use is paused, so the accepted offer was not written to local memory."
+          : "Checkout token issued; accepted outcome was recorded in local-only graph memory."
+      );
       setScreen("qr");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Spark could not issue the checkout token.");
@@ -959,6 +964,11 @@ export default function App() {
         await saveLocalKnowledgeGraph(graph, ownerId);
         setLocalGraph(graph);
       }
+      setAgentStatus(
+        graphPaused
+          ? "Checkout validated; private graph use is paused, so redemption was not written to local memory."
+          : "Checkout validated; redeemed outcome was recorded in local-only graph memory."
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Merchant checkout validation failed.");
     }
@@ -977,6 +987,11 @@ export default function App() {
         await saveLocalKnowledgeGraph(graph, ownerId);
         setLocalGraph(graph);
       }
+      setAgentStatus(
+        graphPaused
+          ? "Offer dismissed; private graph use is paused, so the decline was not written to local memory."
+          : "Offer dismissed; aggregate analytics updated and local-only graph memory recorded the outcome."
+      );
       setOffer(undefined);
       setScreen("map");
     } catch (caught) {
