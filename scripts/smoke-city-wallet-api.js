@@ -179,6 +179,10 @@ const main = async () => {
         cashbackCents: offer.cashbackCents
       })
     });
+    const qrPayload = JSON.parse(token.qrPayload);
+    if (qrPayload.userId || qrPayload.tokenId !== token.id) {
+      throw new Error(`Expected QR payload to expose token proof but not userId, got ${token.qrPayload}.`);
+    }
 
     const overCapResponse = await fetch(`${baseUrl}/redemptions/issue`, {
       method: "POST",

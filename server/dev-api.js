@@ -1013,15 +1013,16 @@ const server = http.createServer(async (req, res) => {
         json(res, 409, { error: "Merchant daily redemption cap has been reached for this campaign rule." });
         return;
       }
+      const tokenId = `token-${Date.now()}`;
       const token = {
-        id: `token-${Date.now()}`,
+        id: tokenId,
         offerId: body.offerId,
         merchantId: body.merchantId,
         ruleId: offerRecord.ruleId,
         userId: body.userId,
         couponCode: body.couponCode,
         cashbackCents: Number(body.cashbackCents || 0),
-        qrPayload: JSON.stringify({ offerId: body.offerId, merchantId: body.merchantId, ruleId: offerRecord.ruleId, userId: body.userId, couponCode: body.couponCode }),
+        qrPayload: JSON.stringify({ tokenId, offerId: body.offerId, merchantId: body.merchantId, ruleId: offerRecord.ruleId, couponCode: body.couponCode }),
         issuedAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 12 * 60 * 1000).toISOString(),
         status: "issued"
