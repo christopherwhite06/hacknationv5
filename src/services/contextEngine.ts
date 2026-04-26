@@ -205,7 +205,7 @@ export const buildContextState = async (
           category: "event",
           label: eventEvidenceLabel,
           source: eventEvidenceSource,
-          status: events.length ? "live" : "not_configured"
+          status: events.length || eventAdapterConfigured ? "live" : "not_configured"
         },
         {
           category: "demand",
