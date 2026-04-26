@@ -3543,6 +3543,8 @@ function MerchantScreen({
     maxAutoDiscountPercent: draftRule.maxDiscountPercent,
     scheduledAdjustments: []
   };
+  const activeEventAdjustment = eventSettings.scheduledAdjustments.find((adjustment) => adjustment.status === "active");
+  const offerEngineRate = activeEventAdjustment?.discountPercent ?? eventSettings.manualDiscountPercent;
 
   useEffect(() => {
     setDraftRule(withBusinessDefaults(rule));
@@ -3609,6 +3611,14 @@ function MerchantScreen({
               </TouchableOpacity>
             );
           })}
+        </View>
+        <View style={styles.rulePreview}>
+          <Text style={styles.ruleLine}>Offer engine rate: {offerEngineRate}%</Text>
+          <Text style={styles.caption}>
+            {activeEventAdjustment
+              ? `Active event adjustment from ${activeEventAdjustment.eventTitle || "live event intelligence"} is driving the next generated offer.`
+              : "Manual merchant rate is driving the next generated offer, bounded by the campaign max discount guardrail."}
+          </Text>
         </View>
         <View style={styles.eventRateGrid}>
           <View style={styles.eventRateBox}>

@@ -593,9 +593,11 @@ const generatedOffer = (body) => {
     ? insight.suggestedProduct
     : rule.eligibleProducts[0];
   const eventAdjustment = activeEventAdjustment(merchant.id);
-  const discountPercent = eventAdjustment
-    ? Math.min(rule.maxDiscountPercent, Number(eventAdjustment.discountPercent))
-    : Math.min(rule.maxDiscountPercent, 15);
+  const eventSettings = eventSettingsFor(merchant.id);
+  const requestedDiscountPercent = eventAdjustment
+    ? Number(eventAdjustment.discountPercent)
+    : Number(eventSettings.manualDiscountPercent || rule.maxDiscountPercent);
+  const discountPercent = Math.max(0, Math.min(rule.maxDiscountPercent, requestedDiscountPercent));
   const cashbackCents = Math.round(Number(insight.marketAnchorPriceEur) * 100 * (discountPercent / 100));
   const expiresAt = new Date(Date.now() + 12 * 60 * 1000).toISOString();
   const code = couponCode(merchant.id);
@@ -653,7 +655,8 @@ const generatedOffer = (body) => {
         insight.liveBusySignal,
         insight.openStatusSignal,
         insight.localEventTieIn,
-        eventAdjustment ? `Business event intelligence active: ${eventAdjustment.reason}` : undefined
+        eventAdjustment ? `Business event intelligence active: ${eventAdjustment.reason}` : undefined,
+        !eventAdjustment ? `Merchant manual rate applied: ${eventSettings.manualDiscountPercent}% requested, capped by ${rule.maxDiscountPercent}% rule guardrail` : undefined
       ].filter(Boolean),
       merchantRule: `${rule.goal.replaceAll("_", " ")} with max ${rule.maxDiscountPercent}% discount`,
       dealSource: insight.sourceUrl,
