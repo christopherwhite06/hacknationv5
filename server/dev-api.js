@@ -489,6 +489,11 @@ const parseRoyalHollowayDate = (value) => {
 };
 
 const royalHollowayEvents = async (point) => {
+  const distanceFromAdapterArea = distanceMeters(point, royalHollowayPoint);
+  if (distanceFromAdapterArea > 20000) {
+    return [];
+  }
+
   const response = await fetch(royalHollowayEventsUrl, {
     headers: {
       Accept: "text/html",
@@ -1165,7 +1170,7 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, [
         { name: "Open-Meteo weather", status: "connected", detail: "Live weather adapter is reachable." },
         { name: "Google Calendar", status: calendarConnections.size ? "connected" : "not_configured", detail: calendarConnections.size ? "Routine cold-start sync is active." : "Connect Calendar to cold-start schedule habits." },
-        { name: "Royal Holloway events", status: "connected", detail: "Public local events are fetched from Royal Holloway's live events page." },
+        { name: "Royal Holloway events", status: "connected", detail: "Public local events are fetched only for active points near Egham/Royal Holloway; other cities show no event signal until their adapter is configured." },
         {
           name: "Payone density",
           status: demoDemandEnabled ? "degraded" : "not_configured",

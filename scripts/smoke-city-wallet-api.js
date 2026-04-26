@@ -63,6 +63,10 @@ const main = async () => {
     if (hermesHealth?.status !== "degraded" || gemmaHealth?.status !== "degraded") {
       throw new Error(`Expected AI runtime health to be adapter/degraded until probed live, got ${JSON.stringify({ hermesHealth, gemmaHealth })}.`);
     }
+    const stuttgartEvents = await requestJson("/events/nearby?lat=48.7758&lon=9.1829");
+    if (stuttgartEvents.length !== 0) {
+      throw new Error(`Expected no Royal Holloway events for Stuttgart until a Stuttgart adapter is configured, got ${JSON.stringify(stuttgartEvents)}.`);
+    }
 
     await requestJson(`/merchants/${merchantId}/event-intelligence`, {
       method: "POST",
