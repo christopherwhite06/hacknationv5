@@ -121,6 +121,53 @@ const main = async () => {
     if (!offer.firstThreeSecondFacts.includes("Claim offer")) {
       throw new Error(`Expected first-three-second facts to include the CTA, got ${JSON.stringify(offer.firstThreeSecondFacts)}.`);
     }
+    const closedOfferResponse = await fetch(`${baseUrl}/offers/generate`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        context: {
+          userId,
+          compositeState: "rain + browsing + top merchant closed",
+          visibleReasons: ["Smoke Cafe appears closed from OSM opening_hours"]
+        },
+        merchant: {
+          id: `${merchantId}-closed`,
+          name: "Closed Smoke Cafe",
+          openStatus: "closed",
+          rules: [
+            {
+              id: "rule-closed-smoke",
+              merchantId: `${merchantId}-closed`,
+              goal: "fill_quiet_hours",
+              maxDiscountPercent: 20,
+              eligibleProducts: ["coffee"],
+              validWindows: ["lunch"],
+              dailyRedemptionCap: 1,
+              brandTone: "cozy",
+              forbiddenClaims: ["free"],
+              autoApproveWithinRules: true,
+              source: "merchant"
+            }
+          ]
+        },
+        dealInsight: {
+          source: "gemma_local",
+          summary: "Closed merchant smoke test insight.",
+          suggestedProduct: "coffee",
+          marketAnchorPriceEur: 5,
+          confidence: 0.9,
+          sourceUrl: "local://smoke-test",
+          openStatusSignal: "Closed Smoke Cafe appears closed from OSM opening_hours"
+        }
+      })
+    });
+
+    if (closedOfferResponse.status !== 409) {
+      throw new Error(`Expected closed merchant offer rejection, got ${closedOfferResponse.status}: ${await closedOfferResponse.text()}`);
+    }
 
     const token = await requestJson("/redemptions/issue", {
       method: "POST",

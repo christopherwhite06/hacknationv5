@@ -973,6 +973,10 @@ const server = http.createServer(async (req, res) => {
         json(res, 400, { error: "Offer generation requires live deal insight." });
         return;
       }
+      if (body.merchant?.openStatus === "closed") {
+        json(res, 409, { error: "Offer generation stopped because live OSM opening_hours reports the merchant is closed." });
+        return;
+      }
       const offer = generatedOffer(body);
       json(res, 200, offer);
       return;
