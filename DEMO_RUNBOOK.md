@@ -18,7 +18,7 @@ The smoke test must confirm:
 - Stuttgart and current-GPS event evidence show config-needed source labels instead of reusing Royal Holloway event data.
 - Payone density returns labelled `payone_demo` signals only when the demo connector is enabled, and no demand signal otherwise.
 - Duplicate account emails/usernames, including case-only and whitespace-only username duplicates, wrong passwords, zero-value event rates, and invalid merchant rule schemas are rejected before the demo flow starts.
-- QR issue, coupon-code match validation, full scanned-token payload proof validation, tampered/incomplete QR rejection, replay rejection, no-user-id QR payload, daily cap rejection, idempotent decline counting, and aggregate analytics all work.
+- QR issue, coupon-code and cashback-amount match validation, full scanned-token payload proof validation, tampered/incomplete QR rejection, replay rejection, no-user-id QR payload, daily cap rejection, idempotent decline counting, and aggregate analytics all work.
 - Raw private graph export is rejected by the API because export is device-only.
 
 ## Emulator Path
