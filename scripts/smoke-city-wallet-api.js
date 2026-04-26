@@ -130,6 +130,23 @@ const main = async () => {
     if (caseDuplicateAccount.status !== 409) {
       throw new Error(`Expected case-insensitive duplicate account email to be rejected, got ${caseDuplicateAccount.status}: ${await caseDuplicateAccount.text()}`);
     }
+    const spacedDuplicateEmailAccount = await fetch(`${baseUrl}/accounts`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: `smoke-account-spaced-email-${Date.now()}`,
+        email: ` ${accountEmail} `,
+        password: "correct-horse",
+        accountType: "user"
+      })
+    });
+
+    if (spacedDuplicateEmailAccount.status !== 409) {
+      throw new Error(`Expected whitespace-trimmed duplicate account email to be rejected, got ${spacedDuplicateEmailAccount.status}: ${await spacedDuplicateEmailAccount.text()}`);
+    }
     const duplicateUsernameAccount = await fetch(`${baseUrl}/accounts`, {
       method: "POST",
       headers: {
