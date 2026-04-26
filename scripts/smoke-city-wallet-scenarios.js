@@ -84,7 +84,7 @@ const main = async () => {
           }
         })
       });
-      if (stuttgartScan.sourceUrl !== "not_configured://events-adapter" || stuttgartScan.events.length !== 0) {
+      if (stuttgartScan.sourceUrl !== "not_configured://events-adapter" || stuttgartScan.decisionSource !== "config_needed" || stuttgartScan.events.length !== 0) {
         throw new Error(`Expected Stuttgart event scan to show config-needed source, got ${JSON.stringify(stuttgartScan)}.`);
       }
 

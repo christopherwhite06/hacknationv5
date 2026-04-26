@@ -4004,6 +4004,7 @@ function MerchantScreen({
               <View style={styles.listTextWrap}>
                 <Text style={styles.ruleLine}>Recommended rate: {eventScanResult.recommendedDiscountPercent}%</Text>
                 <Text style={styles.caption}>Source: {eventScanResult.sourceUrl}</Text>
+                <Text style={styles.caption}>Decision: {eventScanResult.decisionSource.replaceAll("_", " ")}</Text>
               </View>
               <Text style={styles.statusBadge}>{eventSourceStatus}</Text>
             </View>

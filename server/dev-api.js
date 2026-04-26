@@ -1324,7 +1324,7 @@ const server = http.createServer(async (req, res) => {
         sourceUrl: eventAdapterInArea ? royalHollowayEventsUrl : "not_configured://events-adapter",
         events,
         recommendedDiscountPercent: plan.recommendedDiscountPercent,
-        decisionSource: "live_event_policy",
+        decisionSource: eventAdapterInArea ? "live_event_policy" : "config_needed",
         rationale: eventAdapterInArea
           ? plan.rationale
           : ["No event adapter is configured for this city, so Spark keeps the current merchant rate.", ...plan.rationale],

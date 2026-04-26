@@ -108,7 +108,7 @@ export interface BusinessEventScanResult {
   sourceUrl: string;
   events: EventSignal[];
   recommendedDiscountPercent: number;
-  decisionSource: "live_event_policy" | "gemma_local";
+  decisionSource: "live_event_policy" | "gemma_local" | "config_needed";
   rationale: string[];
   scheduledAdjustments: DiscountAdjustment[];
 }
