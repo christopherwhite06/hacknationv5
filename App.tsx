@@ -3786,9 +3786,15 @@ function MerchantScreen({
               onChangeText={(text) => {
                 const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
                 setDraftRule({ ...draftRule, maxDiscountPercent: nextRate });
-                void onSaveEventIntelligence({ manualDiscountPercent: nextRate }).catch((caught) => {
-                  setMerchantError(caught instanceof Error ? caught.message : "Could not save manual rate.");
-                });
+                if (nextRate <= 0) {
+                  setMerchantError("Manual offer rate must be above 0%.");
+                  return;
+                }
+                void onSaveEventIntelligence({ manualDiscountPercent: nextRate })
+                  .then(() => setMerchantError(undefined))
+                  .catch((caught) => {
+                    setMerchantError(caught instanceof Error ? caught.message : "Could not save manual rate.");
+                  });
               }}
             />
           </View>
@@ -3801,11 +3807,14 @@ function MerchantScreen({
                 placeholderTextColor="#8A8A8A"
                 keyboardType="numeric"
                 value={String(eventSettings.minAutoDiscountPercent)}
-                onChangeText={(text) =>
-                  onSaveEventIntelligence({ minAutoDiscountPercent: Number(text.replace(/[^0-9]/g, "")) || 0 }).catch((caught) => {
-                    setMerchantError(caught instanceof Error ? caught.message : "Could not save minimum auto rate.");
-                  })
-                }
+                onChangeText={(text) => {
+                  const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
+                  void onSaveEventIntelligence({ minAutoDiscountPercent: nextRate })
+                    .then(() => setMerchantError(undefined))
+                    .catch((caught) => {
+                      setMerchantError(caught instanceof Error ? caught.message : "Could not save minimum auto rate.");
+                    });
+                }}
               />
               <TextInput
                 style={styles.inputFlex}
@@ -3813,11 +3822,18 @@ function MerchantScreen({
                 placeholderTextColor="#8A8A8A"
                 keyboardType="numeric"
                 value={String(eventSettings.maxAutoDiscountPercent)}
-                onChangeText={(text) =>
-                  onSaveEventIntelligence({ maxAutoDiscountPercent: Number(text.replace(/[^0-9]/g, "")) || 0 }).catch((caught) => {
-                    setMerchantError(caught instanceof Error ? caught.message : "Could not save maximum auto rate.");
-                  })
-                }
+                onChangeText={(text) => {
+                  const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
+                  if (nextRate <= 0) {
+                    setMerchantError("Maximum auto rate must be above 0%.");
+                    return;
+                  }
+                  void onSaveEventIntelligence({ maxAutoDiscountPercent: nextRate })
+                    .then(() => setMerchantError(undefined))
+                    .catch((caught) => {
+                      setMerchantError(caught instanceof Error ? caught.message : "Could not save maximum auto rate.");
+                    });
+                }}
               />
             </View>
           </View>
