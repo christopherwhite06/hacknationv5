@@ -353,9 +353,22 @@ const main = async () => {
       throw new Error(`Expected private graph export rejection, got ${graphExportResponse.status}: ${await graphExportResponse.text()}`);
     }
 
+    const tamperedPayloadResponse = await fetch(`${baseUrl}/redemptions/${encodeURIComponent(token.id)}/validate`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ merchantId, qrPayload: JSON.stringify({ ...qrPayload, proof: "tampered" }) })
+    });
+
+    if (tamperedPayloadResponse.status !== 409) {
+      throw new Error(`Expected tampered QR payload proof to be rejected, got ${tamperedPayloadResponse.status}: ${await tamperedPayloadResponse.text()}`);
+    }
+
     const validated = await requestJson(`/redemptions/${encodeURIComponent(token.id)}/validate`, {
       method: "POST",
-      body: JSON.stringify({ merchantId })
+      body: JSON.stringify({ merchantId, qrPayload: token.qrPayload })
     });
     await requestJson("/offers/decline", {
       method: "POST",

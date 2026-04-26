@@ -73,10 +73,10 @@ export const persistRedemptionToken = (token: RedemptionToken) =>
     body: JSON.stringify(token)
   });
 
-export const validateRedemptionWithApi = (tokenId: string, merchantId: string) =>
+export const validateRedemptionWithApi = (tokenId: string, merchantId: string, qrPayload?: string) =>
   requestJson<RedemptionToken>(`/redemptions/${encodeURIComponent(tokenId)}/validate`, {
     method: "POST",
-    body: JSON.stringify({ merchantId })
+    body: JSON.stringify({ merchantId, qrPayload })
   });
 
 export const fetchMerchantAnalytics = (merchantId: string) =>

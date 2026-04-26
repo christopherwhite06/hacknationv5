@@ -30,7 +30,7 @@ export const issueRedemptionToken = async (offer: GeneratedOffer, userId?: strin
 export const validateRedemptionToken = async (
   token: RedemptionToken,
   merchantId: string
-): Promise<RedemptionToken> => validateRedemptionWithApi(token.id, merchantId);
+): Promise<RedemptionToken> => validateRedemptionWithApi(token.id, merchantId, token.qrPayload);
 
 export const loadMerchantAnalytics = (merchantId: string): Promise<MerchantAnalytics> =>
   fetchMerchantAnalytics(merchantId);

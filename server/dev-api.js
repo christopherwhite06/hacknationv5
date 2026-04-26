@@ -1102,6 +1102,26 @@ const server = http.createServer(async (req, res) => {
         json(res, 403, { error: "Token can only be validated by the issuing merchant." });
         return;
       }
+      if (body.qrPayload) {
+        let scannedPayload;
+        try {
+          scannedPayload = typeof body.qrPayload === "string" ? JSON.parse(body.qrPayload) : body.qrPayload;
+        } catch {
+          json(res, 400, { error: "Scanned QR payload was not valid JSON." });
+          return;
+        }
+        const expectedProof = qrPayloadProof({
+          tokenId: token.id,
+          offerId: token.offerId,
+          merchantId: token.merchantId,
+          ruleId: token.ruleId,
+          couponCode: token.couponCode
+        });
+        if (scannedPayload.userId || scannedPayload.tokenId !== token.id || scannedPayload.proof !== expectedProof) {
+          json(res, 409, { error: "Scanned QR payload proof did not match this token." });
+          return;
+        }
+      }
       if (token.status === "validated") {
         json(res, 409, { error: "Token has already been validated." });
         return;
