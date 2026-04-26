@@ -1028,26 +1028,31 @@ export default function App() {
   };
 
   const submitAuth = async () => {
-    const profile =
-      authMode === "create"
-        ? await createAccount(authForm)
-        : await loginAccount(authForm);
-    const storedAccount = { ...profile, password: "" };
-    await AsyncStorage.setItem(storageKeys.account, JSON.stringify(storedAccount));
-    if (storedAccount.accountType === "business") {
-      await AsyncStorage.setItem(storageKeys.businessAccount, JSON.stringify(storedAccount));
-      setBusinessAccount(storedAccount);
-    } else {
-      await AsyncStorage.setItem(storageKeys.customerAccount, JSON.stringify(storedAccount));
-      setCustomerAccount(storedAccount);
-    }
-    setAccount(storedAccount);
-    setAuthForm({ username: profile.username, email: profile.email, password: "", accountType: profile.accountType });
-    const walletLedger = await fetchLedger(profile.username);
-    setLedger(walletLedger);
-    await saveOwnerLocalData(profile.username, { ledger: walletLedger });
-    if (profile.accountType === "business") {
-      setScreen("merchant");
+    setError(undefined);
+    try {
+      const profile =
+        authMode === "create"
+          ? await createAccount(authForm)
+          : await loginAccount(authForm);
+      const storedAccount = { ...profile, password: "" };
+      await AsyncStorage.setItem(storageKeys.account, JSON.stringify(storedAccount));
+      if (storedAccount.accountType === "business") {
+        await AsyncStorage.setItem(storageKeys.businessAccount, JSON.stringify(storedAccount));
+        setBusinessAccount(storedAccount);
+      } else {
+        await AsyncStorage.setItem(storageKeys.customerAccount, JSON.stringify(storedAccount));
+        setCustomerAccount(storedAccount);
+      }
+      setAccount(storedAccount);
+      setAuthForm({ username: profile.username, email: profile.email, password: "", accountType: profile.accountType });
+      const walletLedger = await fetchLedger(profile.username);
+      setLedger(walletLedger);
+      await saveOwnerLocalData(profile.username, { ledger: walletLedger });
+      if (profile.accountType === "business") {
+        setScreen("merchant");
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Account request failed.");
     }
   };
 
@@ -2742,7 +2747,11 @@ function ProfileScreen({
   const { styles } = useThemeKit();
   const displayName = account?.username || walletUser?.name || "Sign in";
   const initials = displayName.slice(0, 2).toUpperCase();
-  const canSubmit = form.username.trim() && form.email.trim() && form.password.trim();
+  const canSubmit = Boolean(
+    authMode === "create"
+      ? form.username.trim() && form.email.trim() && form.password.trim()
+      : form.email.trim() && form.password.trim()
+  );
   const accountTypeLabel = form.accountType === "business" ? "business" : "local offers";
 
   if (account) {
@@ -2871,9 +2880,10 @@ function ProfileScreen({
 
         <TextInput
           style={styles.input}
-          placeholder="Username"
+          placeholder={authMode === "create" ? "Username" : "Username (not required for login)"}
           placeholderTextColor="#8A8A8A"
           autoCapitalize="none"
+          editable={authMode === "create"}
           value={form.username}
           onChangeText={(username) => onChangeForm({ ...form, username })}
         />
