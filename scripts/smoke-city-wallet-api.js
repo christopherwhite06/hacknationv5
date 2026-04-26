@@ -403,6 +403,19 @@ const main = async () => {
       throw new Error(`Expected tampered QR payload proof to be rejected, got ${tamperedPayloadResponse.status}: ${await tamperedPayloadResponse.text()}`);
     }
 
+    const incompletePayloadResponse = await fetch(`${baseUrl}/redemptions/${encodeURIComponent(token.id)}/validate`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ merchantId, qrPayload: JSON.stringify({ tokenId: qrPayload.tokenId, proof: qrPayload.proof }) })
+    });
+
+    if (incompletePayloadResponse.status !== 409) {
+      throw new Error(`Expected incomplete QR payload proof to be rejected, got ${incompletePayloadResponse.status}: ${await incompletePayloadResponse.text()}`);
+    }
+
     const validated = await requestJson(`/redemptions/${encodeURIComponent(token.id)}/validate`, {
       method: "POST",
       body: JSON.stringify({ merchantId, qrPayload: token.qrPayload })

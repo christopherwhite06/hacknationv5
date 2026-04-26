@@ -1110,14 +1110,16 @@ const server = http.createServer(async (req, res) => {
           json(res, 400, { error: "Scanned QR payload was not valid JSON." });
           return;
         }
-        const expectedProof = qrPayloadProof({
+        const expectedPayload = {
           tokenId: token.id,
           offerId: token.offerId,
           merchantId: token.merchantId,
           ruleId: token.ruleId,
           couponCode: token.couponCode
-        });
-        if (scannedPayload.userId || scannedPayload.tokenId !== token.id || scannedPayload.proof !== expectedProof) {
+        };
+        const expectedProof = qrPayloadProof(expectedPayload);
+        const payloadMismatch = Object.entries(expectedPayload).some(([key, value]) => scannedPayload[key] !== value);
+        if (scannedPayload.userId || payloadMismatch || scannedPayload.proof !== expectedProof) {
           json(res, 409, { error: "Scanned QR payload proof did not match this token." });
           return;
         }
