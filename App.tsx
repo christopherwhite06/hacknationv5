@@ -3456,6 +3456,14 @@ function RedemptionScreen({
   onRedeem: () => void;
 }) {
   const { styles } = useThemeKit();
+  const tokenExpiresAt = new Date(token.expiresAt);
+  const tokenExpired = Date.parse(token.expiresAt) <= Date.now();
+  const scanEnabled = token.status === "issued" && !tokenExpired;
+  const tokenEndingState = token.status === "validated"
+    ? "Redeemed already; this one-time token cannot be scanned again."
+    : tokenExpired
+      ? "Expired; ask Spark to generate a fresh offer before checkout."
+      : `Ready for one merchant scan until ${tokenExpiresAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`;
   let qrProofPreview = "not available";
   let qrContainsUserId = false;
   try {
@@ -3476,6 +3484,7 @@ function RedemptionScreen({
         <Text style={styles.muted}>Token: {token.id}</Text>
         <Text style={styles.muted}>Coupon code: {token.couponCode}</Text>
         <Text style={styles.muted}>Status: {token.status}</Text>
+        <Text style={styles.muted}>Ending state: {tokenEndingState}</Text>
         <Text style={styles.muted}>Cashback: {formatMoney(offer.cashbackCents, currency)}</Text>
         <Text style={styles.muted}>QR proof: {qrProofPreview}</Text>
         <Text style={styles.muted}>
@@ -3483,7 +3492,7 @@ function RedemptionScreen({
         </Text>
       </View>
 
-      <TouchableOpacity style={styles.primaryButton} onPress={onRedeem}>
+      <TouchableOpacity style={[styles.primaryButton, !scanEnabled && styles.buttonDisabled]} disabled={!scanEnabled} onPress={onRedeem}>
         <Text style={styles.primaryButtonText}>Validate merchant scan and checkout</Text>
       </TouchableOpacity>
 
