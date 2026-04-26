@@ -186,7 +186,7 @@ export const buildContextState = async (
         {
           category: "weather",
           label: `${Math.round(weather.temperatureC)}C ${weather.condition}`,
-          source: weather.source,
+          source: scenarioConfig.signalSources.weather,
           status: "live"
         },
         {
