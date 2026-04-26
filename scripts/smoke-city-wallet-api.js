@@ -100,6 +100,23 @@ const main = async () => {
     if (duplicateAccount.status !== 409) {
       throw new Error(`Expected duplicate account email to be rejected, got ${duplicateAccount.status}: ${await duplicateAccount.text()}`);
     }
+    const caseDuplicateAccount = await fetch(`${baseUrl}/accounts`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: `smoke-account-case-duplicate-${Date.now()}`,
+        email: accountEmail.toUpperCase(),
+        password: "correct-horse",
+        accountType: "user"
+      })
+    });
+
+    if (caseDuplicateAccount.status !== 409) {
+      throw new Error(`Expected case-insensitive duplicate account email to be rejected, got ${caseDuplicateAccount.status}: ${await caseDuplicateAccount.text()}`);
+    }
     const rejectedSession = await fetch(`${baseUrl}/sessions`, {
       method: "POST",
       headers: {
@@ -119,7 +136,7 @@ const main = async () => {
     const acceptedSession = await requestJson("/sessions", {
       method: "POST",
       body: JSON.stringify({
-        email: accountEmail,
+        email: accountEmail.toUpperCase(),
         password: "correct-horse",
         accountType: "user"
       })

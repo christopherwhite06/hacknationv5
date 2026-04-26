@@ -254,6 +254,8 @@ const verifyPassword = (password, profile) => {
   return expectedHash.length === providedHash.length && crypto.timingSafeEqual(expectedHash, providedHash);
 };
 
+const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+
 const distanceMeters = (from, to) => {
   const earthRadiusM = 6371000;
   const deltaLat = ((to.latitude - from.latitude) * Math.PI) / 180;
@@ -782,23 +784,24 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && path === "/accounts") {
       const body = await readJsonBody(req);
-      if (!body.username || !body.email || !body.password) {
+      const email = normalizeEmail(body.email);
+      if (!body.username || !email || !body.password) {
         json(res, 400, { error: "username, email and password are required" });
         return;
       }
-      if (accounts.has(body.email)) {
+      if (accounts.has(email)) {
         json(res, 409, { error: "An account already exists for this email." });
         return;
       }
 
       const profile = {
         username: body.username,
-        email: body.email,
+        email,
         accountType: body.accountType === "business" ? "business" : "user",
         ...createPasswordRecord(body.password),
         sessionToken: `session-${Date.now()}`
       };
-      accounts.set(body.email, profile);
+      accounts.set(email, profile);
       userLedger(body.username);
       json(res, 200, {
         username: profile.username,
@@ -811,7 +814,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && path === "/sessions") {
       const body = await readJsonBody(req);
-      const profile = accounts.get(body.email);
+      const profile = accounts.get(normalizeEmail(body.email));
       if (!body.password) {
         json(res, 400, { error: "password is required" });
         return;
