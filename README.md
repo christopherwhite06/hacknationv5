@@ -118,8 +118,8 @@ For the full judge-day checklist, see `DEMO_RUNBOOK.md`.
 3. Open the `Routine` tab to sync Google Calendar and let Spark create consent-based time/location prompts.
 4. Say yes to a Spark routine question to run local Gemma against the graph and Gemini/Hermes against the web.
 5. Open the `Offer` tab to view the dynamically generated offer card.
-6. Accept the offer to create a one-time QR token with a tamper-evident proof and no `userId` in the QR payload.
-7. Validate merchant checkout on the `Redeem` tab; the API checks the scanned QR proof before confirming cashback.
+6. Accept the offer before expiry to create a one-time QR token with a tamper-evident proof and no `userId` in the QR payload.
+7. Validate merchant checkout on the `Redeem` tab; the API checks the scanned QR proof before confirming cashback, and the UI blocks expired or already validated tokens.
 8. Open the `Wallet` tab to see offer history, cashback, and connector health.
 9. Open the `Profile` tab to create an account or adjust settings.
 10. Open the `Merchant` tab to edit rules, preview campaign limits, and review aggregate metrics.

@@ -44,7 +44,7 @@ Start on the `Demo` tab and show `Brief Coverage Evidence`. It should connect:
 
 - Context sensing: weather, device/map location, time, events when configured, and Payone/demo demand labels.
 - Generative offer: merchant guardrails plus generated copy, theme, CTA, timing, and source evidence.
-- Checkout: accept creates a one-time token only while the generated offer is still valid; QR proof has no user ID, redeem checks the scanned proof, analytics update in aggregate.
+- Checkout: accept creates a one-time token only while the generated offer is still valid; QR proof has no user ID, redeem checks the scanned proof, expired/replayed scans are blocked, analytics update in aggregate.
 - Merchant side: rule source, discount cap, daily cap, event intelligence, and measured checkout conversion.
 - Privacy: raw graph, routine, preferences, and precise movement stay local; cloud receives only abstract intent and public context; graph pause visibly stops local memory reads/writes for deal discovery and labels checkout outcomes as not written to local memory.
 
