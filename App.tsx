@@ -26,7 +26,7 @@ import QRCode from "react-native-qrcode-svg";
 import Svg, { Line } from "react-native-svg";
 import { WebView } from "react-native-webview";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { cityWalletConfig, cityWalletConfigs } from "./src/config/cityWalletConfig";
+import { cityWalletConfig, cityWalletConfigForPoint, cityWalletConfigs, CityWalletConfig } from "./src/config/cityWalletConfig";
 import { aiStackValidation, discoverDealInsight } from "./src/services/aiStack";
 import { learnBrowserSkillFromDeal, loadRelevantBrowserSkills } from "./src/services/browserSkills";
 import { buildContextState } from "./src/services/contextEngine";
@@ -1000,6 +1000,7 @@ export default function App() {
   };
 
   const walletBalance = walletUser ? formatMoney(walletUser.walletBalanceCents, currency) : "--";
+  const activeCityConfig = cityWalletConfigForPoint(userPoint);
   const saveOwnerLocalData = async (
     targetOwnerId: string,
     patch: Partial<{
@@ -1366,6 +1367,7 @@ export default function App() {
               browserAgentMode={browserAgentMode}
               currency={currency}
               themeMode={themeMode}
+              activeCityConfig={activeCityConfig}
               onChangeMode={setAuthMode}
               onChangeForm={setAuthForm}
               onChangeAccountType={(accountType) => setAuthForm({ ...authForm, accountType })}
@@ -1585,6 +1587,7 @@ export default function App() {
             browserAgentMode={browserAgentMode}
             currency={currency}
             themeMode={themeMode}
+            activeCityConfig={activeCityConfig}
             onChangeMode={setAuthMode}
             onChangeForm={setAuthForm}
             onChangeAccountType={(accountType) => setAuthForm({ ...authForm, accountType })}
@@ -2745,6 +2748,7 @@ function ProfileScreen({
   browserAgentMode,
   currency,
   themeMode,
+  activeCityConfig,
   onChangeMode,
   onChangeForm,
   onChangeAccountType,
@@ -2764,6 +2768,7 @@ function ProfileScreen({
   browserAgentMode: BrowserAgentMode;
   currency: CurrencyCode;
   themeMode: ThemeMode;
+  activeCityConfig: CityWalletConfig;
   onChangeMode: (mode: AuthMode) => void;
   onChangeForm: (form: Account) => void;
   onChangeAccountType: (accountType: AccountType) => void;
@@ -2855,9 +2860,9 @@ function ProfileScreen({
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Privacy and Live Data</Text>
-          <Text style={styles.caption}>Spark is configured for {cityWalletConfig.city}. These inputs are configurable without changing the offer pipeline.</Text>
+          <Text style={styles.caption}>Spark is using {activeCityConfig.city}. These inputs are configurable without changing the offer pipeline.</Text>
           <Text style={styles.bullet}>- Local only: private graph, routine memory, browser skills, raw preferences.</Text>
-          <Text style={styles.bullet}>- Live grounding: {Object.values(cityWalletConfig.signalSources).join("; ")}.</Text>
+          <Text style={styles.bullet}>- Live grounding: {Object.values(activeCityConfig.signalSources).join("; ")}.</Text>
           <Text style={styles.bullet}>- Cloud: Hermes/Gemini receives abstract intent plus public merchant/context facts, not raw movement history.</Text>
           <Text style={styles.bullet}>- Demo: merchant campaign rules and Payone density are labelled demo connectors until production credentials are connected.</Text>
           <TouchableOpacity style={styles.secondaryButton} onPress={() => onPauseGraph(!graphPaused)}>
