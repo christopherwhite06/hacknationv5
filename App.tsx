@@ -3653,6 +3653,7 @@ function MerchantScreen({
   const [scanBusy, setScanBusy] = useState(false);
   const [eventStatus, setEventStatus] = useState<string | undefined>();
   const [savedMessage, setSavedMessage] = useState<string | undefined>();
+  const [merchantError, setMerchantError] = useState<string | undefined>();
   const eventSettings = eventIntelligence || {
     merchantId: merchant.id,
     mode: "manual" as const,
@@ -3704,8 +3705,13 @@ function MerchantScreen({
             style={[styles.ruleChip, eventSettings.mode === "auto" && styles.ruleChipActive]}
             onPress={async () => {
               const nextMode = eventSettings.mode === "auto" ? "manual" : "auto";
-              await onSaveEventIntelligence({ mode: nextMode });
-              setEventStatus(nextMode === "auto" ? "Auto mode enabled. Run a scan to schedule event-based rates." : "Manual mode enabled.");
+              try {
+                await onSaveEventIntelligence({ mode: nextMode });
+                setMerchantError(undefined);
+                setEventStatus(nextMode === "auto" ? "Auto mode enabled. Run a scan to schedule event-based rates." : "Manual mode enabled.");
+              } catch (caught) {
+                setMerchantError(caught instanceof Error ? caught.message : "Could not update event mode.");
+              }
             }}
           >
             <Text style={[styles.ruleChipText, eventSettings.mode === "auto" && styles.ruleChipTextActive]}>
@@ -3722,8 +3728,13 @@ function MerchantScreen({
                 key={option.id}
                 style={[styles.ruleChip, active && styles.ruleChipActive]}
                 onPress={async () => {
-                  await onSaveEventIntelligence({ scanCadence: option.id });
-                  setEventStatus(`Event scan cadence set to ${option.label}.`);
+                  try {
+                    await onSaveEventIntelligence({ scanCadence: option.id });
+                    setMerchantError(undefined);
+                    setEventStatus(`Event scan cadence set to ${option.label}.`);
+                  } catch (caught) {
+                    setMerchantError(caught instanceof Error ? caught.message : "Could not update event scan cadence.");
+                  }
                 }}
               >
                 <Text style={[styles.ruleChipText, active && styles.ruleChipTextActive]}>{option.label}</Text>
@@ -3751,7 +3762,9 @@ function MerchantScreen({
               onChangeText={(text) => {
                 const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
                 setDraftRule({ ...draftRule, maxDiscountPercent: nextRate });
-                void onSaveEventIntelligence({ manualDiscountPercent: nextRate });
+                void onSaveEventIntelligence({ manualDiscountPercent: nextRate }).catch((caught) => {
+                  setMerchantError(caught instanceof Error ? caught.message : "Could not save manual rate.");
+                });
               }}
             />
           </View>
@@ -3765,7 +3778,9 @@ function MerchantScreen({
                 keyboardType="numeric"
                 value={String(eventSettings.minAutoDiscountPercent)}
                 onChangeText={(text) =>
-                  onSaveEventIntelligence({ minAutoDiscountPercent: Number(text.replace(/[^0-9]/g, "")) || 0 })
+                  onSaveEventIntelligence({ minAutoDiscountPercent: Number(text.replace(/[^0-9]/g, "")) || 0 }).catch((caught) => {
+                    setMerchantError(caught instanceof Error ? caught.message : "Could not save minimum auto rate.");
+                  })
                 }
               />
               <TextInput
@@ -3775,7 +3790,9 @@ function MerchantScreen({
                 keyboardType="numeric"
                 value={String(eventSettings.maxAutoDiscountPercent)}
                 onChangeText={(text) =>
-                  onSaveEventIntelligence({ maxAutoDiscountPercent: Number(text.replace(/[^0-9]/g, "")) || 0 })
+                  onSaveEventIntelligence({ maxAutoDiscountPercent: Number(text.replace(/[^0-9]/g, "")) || 0 }).catch((caught) => {
+                    setMerchantError(caught instanceof Error ? caught.message : "Could not save maximum auto rate.");
+                  })
                 }
               />
             </View>
@@ -3802,14 +3819,20 @@ function MerchantScreen({
         <TouchableOpacity
           style={styles.secondaryButton}
           onPress={async () => {
-            await onSaveEventIntelligence({ manualDiscountPercent: draftRule.maxDiscountPercent });
-            await onSaveRule({ ...draftRule, maxDiscountPercent: draftRule.maxDiscountPercent });
-            setSavedMessage(`Manual offer rate set to ${draftRule.maxDiscountPercent}%.`);
+            try {
+              await onSaveEventIntelligence({ manualDiscountPercent: draftRule.maxDiscountPercent });
+              await onSaveRule({ ...draftRule, maxDiscountPercent: draftRule.maxDiscountPercent });
+              setMerchantError(undefined);
+              setSavedMessage(`Manual offer rate set to ${draftRule.maxDiscountPercent}%.`);
+            } catch (caught) {
+              setMerchantError(caught instanceof Error ? caught.message : "Could not apply manual rate.");
+            }
           }}
         >
           <Text style={styles.secondaryButtonText}>Apply manual rate to campaign</Text>
         </TouchableOpacity>
         {eventStatus && <Text style={styles.successText}>{eventStatus}</Text>}
+        {merchantError && <Text style={styles.errorText}>{merchantError}</Text>}
         {eventScanResult && (
           <View style={styles.rulePreview}>
             <Text style={styles.ruleLine}>Recommended rate: {eventScanResult.recommendedDiscountPercent}%</Text>
@@ -3923,13 +3946,19 @@ function MerchantScreen({
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={async () => {
-            await onSaveRule(draftRule);
-            setSavedMessage("Merchant rule saved and campaign preview updated.");
+            try {
+              await onSaveRule(draftRule);
+              setMerchantError(undefined);
+              setSavedMessage("Merchant rule saved and campaign preview updated.");
+            } catch (caught) {
+              setMerchantError(caught instanceof Error ? caught.message : "Could not save merchant rule.");
+            }
           }}
         >
           <Text style={styles.primaryButtonText}>Save merchant rule</Text>
         </TouchableOpacity>
         {savedMessage && <Text style={styles.successText}>{savedMessage}</Text>}
+        {merchantError && <Text style={styles.errorText}>{merchantError}</Text>}
       </View>
 
       <View style={styles.card}>
@@ -5505,6 +5534,11 @@ function createStyles(theme: AppTheme) {
   },
   successText: {
     color: theme.successText,
+    lineHeight: 20
+  },
+  errorText: {
+    color: theme.primary,
+    fontWeight: "800",
     lineHeight: 20
   },
   ruleLine: {
