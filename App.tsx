@@ -3861,6 +3861,10 @@ function MerchantScreen({
                 value={String(eventSettings.minAutoDiscountPercent)}
                 onChangeText={(text) => {
                   const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
+                  if (nextRate > eventSettings.maxAutoDiscountPercent) {
+                    setMerchantError("Minimum auto rate cannot be above the maximum auto rate.");
+                    return;
+                  }
                   void onSaveEventIntelligence({ minAutoDiscountPercent: nextRate })
                     .then(() => setMerchantError(undefined))
                     .catch((caught) => {
@@ -3878,6 +3882,10 @@ function MerchantScreen({
                   const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
                   if (nextRate <= 0) {
                     setMerchantError("Maximum auto rate must be above 0%.");
+                    return;
+                  }
+                  if (nextRate < eventSettings.minAutoDiscountPercent) {
+                    setMerchantError("Maximum auto rate cannot be below the minimum auto rate.");
                     return;
                   }
                   void onSaveEventIntelligence({ maxAutoDiscountPercent: nextRate })
