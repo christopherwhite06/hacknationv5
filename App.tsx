@@ -4139,6 +4139,22 @@ function KnowledgeGraphScreen({
     });
     return counts;
   }, [graph.nodes]);
+  const offerOutcomeSummary = useMemo(() => {
+    const summary = { accepted: 0, dismissed: 0, redeemed: 0 };
+    graph.nodes.forEach((node) => {
+      if (node.type !== "offer") {
+        return;
+      }
+      if (node.id.startsWith("offer:accepted:")) {
+        summary.accepted += 1;
+      } else if (node.id.startsWith("offer:dismissed:")) {
+        summary.dismissed += 1;
+      } else if (node.id.startsWith("offer:redeemed:")) {
+        summary.redeemed += 1;
+      }
+    });
+    return summary;
+  }, [graph.nodes]);
   const connectedNodeIds = useMemo(
     () => new Set(selectedEdges.flatMap((edge) => [edge.from, edge.to])),
     [selectedEdges]
@@ -4237,6 +4253,21 @@ function KnowledgeGraphScreen({
           </View>
         </View>
         {intent && <Text style={styles.signalPill}>Intent: {intent.abstractSignal}</Text>}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Local Offer Learning</Text>
+        <Text style={styles.caption}>
+          These outcome clusters are stored only in the private graph and help Gemma avoid repeating irrelevant offers.
+        </Text>
+        <View style={styles.metricGrid}>
+          <Metric label="Accepted" value={offerOutcomeSummary.accepted} />
+          <Metric label="Redeemed" value={offerOutcomeSummary.redeemed} />
+          <Metric label="Dismissed" value={offerOutcomeSummary.dismissed} />
+        </View>
+        <Text style={styles.muted}>
+          Merchant analytics stay aggregate; individual outcome nodes remain on this device unless the user exports locally.
+        </Text>
       </View>
 
       <View style={styles.graphCanvas}>
@@ -5847,6 +5878,9 @@ function createStyles(theme: AppTheme) {
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: theme.border
+  },
+  metricGrid: {
+    marginTop: 8
   },
   metricLabel: {
     color: theme.muted
