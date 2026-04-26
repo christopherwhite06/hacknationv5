@@ -32,11 +32,13 @@ EXPO_PUBLIC_GEMINI_API_KEY=your-gemini-api-key
 EXPO_PUBLIC_LOCAL_GEMMA_URL=http://127.0.0.1:11434
 EXPO_PUBLIC_LOCAL_GEMMA_MODEL=gemma4:e4b
 EXPO_PUBLIC_CITY_WALLET_USER_ID=real-user-id
-EXPO_PUBLIC_CITY_WALLET_SCENARIO=egham # optional: egham, stuttgart, or gps
+EXPO_PUBLIC_CITY_WALLET_SCENARIO=egham
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
 EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=your-google-android-oauth-client-id
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-google-web-oauth-client-id
 ```
+
+`EXPO_PUBLIC_CITY_WALLET_SCENARIO` is optional and accepts `egham`, `stuttgart`, or `gps`.
 
 Required live endpoints:
 
