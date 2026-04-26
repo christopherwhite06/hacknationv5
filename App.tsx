@@ -2936,6 +2936,11 @@ function ProfileScreen({
           value={form.password}
           onChangeText={(password) => onChangeForm({ ...form, password })}
         />
+        {authMode === "create" && (
+          <Text style={styles.caption}>
+            Usernames and emails are trimmed before signup; duplicate usernames are checked case-insensitively.
+          </Text>
+        )}
 
         <TouchableOpacity
           style={[styles.primaryButton, !canSubmit && styles.buttonDisabled]}
