@@ -184,6 +184,7 @@ const storageKeys = {
   theme: "city-wallet-theme"
 };
 const graphResetVersion = "2026-04-26-fresh-live-graph";
+const privacyPausedGraph: LocalKnowledgeGraph = { nodes: [], edges: [] };
 
 const currencyOptions: Array<{ code: CurrencyCode; symbol: string; eurRate: number }> = [
   { code: "EUR", symbol: "EUR", eurRate: 1 },
@@ -394,10 +395,12 @@ export default function App() {
         buildContextState(point, ownerId, previousPoint),
         loadLocalKnowledgeGraph(ownerId)
       ]);
-      const localGraph = recordLiveContextInGraph(storedGraph, liveContext, liveMerchants);
+      const localGraph = graphPaused ? storedGraph : recordLiveContextInGraph(storedGraph, liveContext, liveMerchants);
       const selectedMerchant = liveMerchants.find((candidate) => candidate.id === liveContext.rankedMerchantIds[0]);
 
-      await saveLocalKnowledgeGraph(localGraph, ownerId);
+      if (!graphPaused) {
+        await saveLocalKnowledgeGraph(localGraph, ownerId);
+      }
       lastPipelinePoint.current = point;
       setWalletUser(user);
       setUserPoint(point);
@@ -413,7 +416,7 @@ export default function App() {
         setEventScanResult(undefined);
       }
 
-      const intent = await inferLocalIntent(liveContext, localGraph);
+      const intent = await inferLocalIntent(liveContext, graphPaused ? privacyPausedGraph : localGraph);
       const [walletLedger, health] = await Promise.all([
         fetchLedger(user.id),
         fetchConnectorHealth()
@@ -439,9 +442,11 @@ export default function App() {
       }
 
       try {
-        const browserSkills = await loadRelevantBrowserSkills(ownerId, intent);
+        const browserSkills = graphPaused ? [] : await loadRelevantBrowserSkills(ownerId, intent);
         const dealInsight = await discoverDealInsight(intent, liveContext, browserAgentMode, browserSkills);
-        await learnBrowserSkillFromDeal(ownerId, intent, liveContext, dealInsight);
+        if (!graphPaused) {
+          await learnBrowserSkillFromDeal(ownerId, intent, liveContext, dealInsight);
+        }
         const offerMerchant = selectedMerchant;
         const generatedOffer = await generateOffer(liveContext, intent, offerMerchant, dealInsight);
         const merchantAnalytics = await loadMerchantAnalytics(offerMerchant.id);
@@ -451,6 +456,9 @@ export default function App() {
         setAnalytics(merchantAnalytics);
         setAgentStatus(
           statusMessage ||
+            (graphPaused
+              ? "Private graph use is paused. Spark used live context only and did not reuse local graph or browser skills."
+              : undefined) ||
             (isGeminiBrowserMode(browserAgentMode)
               ? "Hermes/Gemini returned live deal intelligence using abstract intent only."
               : "Local Gemma generated private deal intelligence without calling the browser agent.")
@@ -764,8 +772,11 @@ export default function App() {
         if (!savedHome || staleHome) {
           await AsyncStorage.setItem(ownerHomeKey(ownerId), JSON.stringify(resolvedHome));
         }
-        const graphWithHome = addHomeLocationToGraph(await loadLocalKnowledgeGraph(ownerId), resolvedHome);
-        await saveLocalKnowledgeGraph(graphWithHome, ownerId);
+        const storedGraph = await loadLocalKnowledgeGraph(ownerId);
+        const graphWithHome = graphPaused ? storedGraph : addHomeLocationToGraph(storedGraph, resolvedHome);
+        if (!graphPaused) {
+          await saveLocalKnowledgeGraph(graphWithHome, ownerId);
+        }
         if (!active) {
           return;
         }
@@ -789,7 +800,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [account, graphResetComplete, locationRetryToken, ownerId, preferencesLoaded]);
+  }, [account, graphPaused, graphResetComplete, locationRetryToken, ownerId, preferencesLoaded]);
 
   useEffect(() => {
     if (!account || !preferencesLoaded || simulatedTravelEnabled) {
@@ -835,7 +846,7 @@ export default function App() {
     return () => {
       sub?.remove();
     };
-  }, [account, browserAgentMode, ownerId, preferencesLoaded, simulatedTravelEnabled]);
+  }, [account, browserAgentMode, graphPaused, ownerId, preferencesLoaded, simulatedTravelEnabled]);
 
   useEffect(() => {
     if (!localGraph?.edges.length || graphPaused) {
@@ -1099,6 +1110,10 @@ export default function App() {
       setRoutineStatus("Google Calendar sync requires Google login or a Calendar OAuth access token.");
       return;
     }
+    if (graphPaused) {
+      setRoutineStatus("Private graph use is paused. Resume graph use before syncing Calendar into routine memory.");
+      return;
+    }
 
     setRoutineStatus("Syncing Google Calendar and writing routine signals into the local graph...");
     const events = await syncGoogleCalendar(userId, accessToken);
@@ -1143,6 +1158,10 @@ export default function App() {
       setRoutineStatus("Spark needs live context before searching for a routine deal.");
       return;
     }
+    if (graphPaused) {
+      setRoutineStatus("Private graph use is paused. Spark will not search routine memory until you resume graph use.");
+      return;
+    }
 
     setRoutineStatus(
       isGeminiBrowserMode(browserAgentMode)
@@ -1178,6 +1197,10 @@ export default function App() {
 
     if (!context || !userPoint) {
       setManualPromptStatus("Spark needs live context before manually searching for deals.");
+      return;
+    }
+    if (graphPaused) {
+      setManualPromptStatus("Private graph use is paused. Resume graph use before asking Spark to search your local graph.");
       return;
     }
 
