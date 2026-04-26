@@ -310,6 +310,10 @@ export interface MerchantAnalytics {
   redemptionRate: number;
   quietHourLiftPercent: number;
   quietHourLiftBasis: "not_measured" | "payone_demo" | "payone_live";
+  currentCampaignRuleId?: string;
+  currentCampaignDailyCap?: number;
+  currentCampaignIssuedToday?: number;
+  currentCampaignRemainingToday?: number;
 }
 
 export interface AiStackValidation {

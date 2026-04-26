@@ -65,10 +65,22 @@ const merchantAnalytics = (merchantId) => {
   }
 
   const current = analytics.get(merchantId);
+  const currentCampaign = [...generatedOffers.values()]
+    .filter((offer) => offer.merchantId === merchantId)
+    .sort((a, b) => Date.parse(b.generatedAt) - Date.parse(a.generatedAt))[0];
+  const issuedToday = currentCampaign ? issuedTokensForRuleToday(merchantId, currentCampaign.ruleId) : undefined;
+  const dailyCap = currentCampaign ? Number(currentCampaign.dailyRedemptionCap || 0) : undefined;
+
   return {
     ...current,
     acceptRate: current.impressions ? current.accepts / current.impressions : 0,
-    redemptionRate: current.accepts ? current.redemptions / current.accepts : 0
+    redemptionRate: current.accepts ? current.redemptions / current.accepts : 0,
+    currentCampaignRuleId: currentCampaign?.ruleId,
+    currentCampaignDailyCap: dailyCap,
+    currentCampaignIssuedToday: issuedToday,
+    currentCampaignRemainingToday: typeof dailyCap === "number" && typeof issuedToday === "number"
+      ? Math.max(0, dailyCap - issuedToday)
+      : undefined
   };
 };
 
@@ -717,7 +729,8 @@ const generatedOffer = (body) => {
   generatedOffers.set(offer.id, {
     merchantId: merchant.id,
     ruleId: rule.id,
-    dailyRedemptionCap: Number(rule.dailyRedemptionCap || 0)
+    dailyRedemptionCap: Number(rule.dailyRedemptionCap || 0),
+    generatedAt: new Date().toISOString()
   });
   return offer;
 };

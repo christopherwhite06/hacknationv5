@@ -184,6 +184,9 @@ const main = async () => {
     if (analytics.quietHourLiftBasis !== "not_measured" || analytics.quietHourLiftPercent !== 0) {
       throw new Error(`Expected quiet-hour lift to remain unmeasured without post-campaign Payone baseline, got ${JSON.stringify(analytics)}.`);
     }
+    if (analytics.currentCampaignDailyCap !== 1 || analytics.currentCampaignRemainingToday !== 0) {
+      throw new Error(`Expected exhausted campaign capacity after one capped issue, got ${JSON.stringify(analytics)}.`);
+    }
 
     console.log(
       JSON.stringify(
@@ -198,7 +201,8 @@ const main = async () => {
             redemptions: analytics.redemptions,
             acceptRate: analytics.acceptRate,
             redemptionRate: analytics.redemptionRate,
-            quietHourLiftBasis: analytics.quietHourLiftBasis
+            quietHourLiftBasis: analytics.quietHourLiftBasis,
+            remainingToday: analytics.currentCampaignRemainingToday
           }
         },
         null,
