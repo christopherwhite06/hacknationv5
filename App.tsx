@@ -784,10 +784,10 @@ export default function App() {
         setHomePoint(resolvedHome);
         setLocalGraph(graphWithHome);
 
-        setTravelStatus("Real GPS active. Current location is saved as Home, so standing still here will not trigger Spark.");
+        setTravelStatus("Real GPS active. Current location is saved as a device-local Home waypoint, so standing still here will not trigger Spark.");
         await loadPipelineForPoint(
           point,
-          "Home waypoint set from real GPS. Spark will suppress standing-still triggers here."
+          "Device-local Home waypoint set from real GPS. Spark will suppress standing-still triggers here."
         );
       } catch (caught) {
         if (active) {
@@ -1860,7 +1860,7 @@ function MapScreen({
         <Text style={styles.signalPill}>{manualPromptStatus}</Text>
         {isAtHome && (
           <Text style={styles.caption}>
-            You are at Home. Spark will save account data locally but will not trigger standing-still prompts here.
+            You are at the device-local Home waypoint. Spark will save account data locally but will not trigger standing-still prompts here.
           </Text>
         )}
       </View>
