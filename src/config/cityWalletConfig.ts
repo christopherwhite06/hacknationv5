@@ -20,6 +20,22 @@ export interface CityWalletConfig {
   scoringWeights: Record<SignalCategory, number>;
 }
 
+const distanceMeters = (
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number }
+) => {
+  const earthRadiusM = 6371000;
+  const deltaLat = ((to.latitude - from.latitude) * Math.PI) / 180;
+  const deltaLon = ((to.longitude - from.longitude) * Math.PI) / 180;
+  const lat1 = (from.latitude * Math.PI) / 180;
+  const lat2 = (to.latitude * Math.PI) / 180;
+  const a =
+    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+
+  return earthRadiusM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
 export const eghamConfig: CityWalletConfig = {
   scenario: "egham",
   city: "Egham live area",
@@ -88,3 +104,15 @@ const requestedScenario = process.env.EXPO_PUBLIC_CITY_WALLET_SCENARIO as CityWa
 export const cityWalletConfig = requestedScenario && cityWalletConfigs[requestedScenario]
   ? cityWalletConfigs[requestedScenario]
   : eghamConfig;
+
+export const cityWalletConfigForPoint = (point?: { latitude: number; longitude: number }) => {
+  if (!point) {
+    return cityWalletConfig;
+  }
+
+  const matchedScenario = (["egham", "stuttgart"] as const)
+    .map((scenario) => cityWalletConfigs[scenario])
+    .find((config) => config.defaultPoint && distanceMeters(point, config.defaultPoint) <= 2000);
+
+  return matchedScenario || gpsConfig;
+};

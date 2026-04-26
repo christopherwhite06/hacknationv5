@@ -1,4 +1,4 @@
-import { cityWalletConfig } from "../config/cityWalletConfig";
+import { CityWalletConfig, cityWalletConfigForPoint } from "../config/cityWalletConfig";
 import { getRuntimeConfig } from "../config/runtimeConfig";
 import { fetchEventsNear, fetchMerchantsNear, fetchPayoneDemand } from "./cityWalletApi";
 import { fetchWeather } from "./weatherClient";
@@ -35,6 +35,7 @@ const merchantOpenScore = (merchant: Merchant) => {
 };
 
 const merchantScore = (
+  config: CityWalletConfig,
   merchant: Merchant,
   location: LocationSignal,
   time: TimeSignal,
@@ -43,18 +44,18 @@ const merchantScore = (
   demand?: DemandSignal
 ) => {
   const distance = distanceMeters(location.userPosition, merchant.location);
-  const proximityScore = Math.max(0, 1 - distance / cityWalletConfig.triggerThresholds.geofenceRadiusM);
+  const proximityScore = Math.max(0, 1 - distance / config.triggerThresholds.geofenceRadiusM);
   const demandNeedScore = demand ? 1 - demand.quietnessScore : 0;
-  const weatherFit = merchant.category === "cafe" && weather.temperatureC <= cityWalletConfig.triggerThresholds.coldTemperatureC ? 1 : 0.35;
+  const weatherFit = merchant.category === "cafe" && weather.temperatureC <= config.triggerThresholds.coldTemperatureC ? 1 : 0.35;
   const timeFit = merchant.rules.some((rule) => rule.validWindows.includes(time.window)) ? 1 : 0;
   const eventFit = events.some((event) => event.expectedDemandImpact !== "low") ? 0.5 : 0.2;
 
   return (
-    proximityScore * cityWalletConfig.scoringWeights.location +
-    demandNeedScore * cityWalletConfig.scoringWeights.demand +
-    weatherFit * cityWalletConfig.scoringWeights.weather +
-    timeFit * cityWalletConfig.scoringWeights.time +
-    eventFit * cityWalletConfig.scoringWeights.event +
+    proximityScore * config.scoringWeights.location +
+    demandNeedScore * config.scoringWeights.demand +
+    weatherFit * config.scoringWeights.weather +
+    timeFit * config.scoringWeights.time +
+    eventFit * config.scoringWeights.event +
     merchantOpenScore(merchant)
   );
 };
@@ -72,15 +73,15 @@ const getTimeSignal = (): TimeSignal => {
   };
 };
 
-export const buildLocationSignal = (point: GeoPoint, previousPoint?: GeoPoint): LocationSignal => {
+export const buildLocationSignal = (point: GeoPoint, previousPoint?: GeoPoint, config = cityWalletConfigForPoint(point)): LocationSignal => {
   const speedMps = previousPoint ? distanceMeters(previousPoint, point) / 60 : 0;
 
   return {
     category: "location",
     userPosition: point,
-    movement: speedMps > 1.4 ? "commuting" : speedMps < cityWalletConfig.triggerThresholds.browsingSpeedMps ? "browsing" : "stationary",
+    movement: speedMps > 1.4 ? "commuting" : speedMps < config.triggerThresholds.browsingSpeedMps ? "browsing" : "stationary",
     speedMps,
-    dwellStopsLast10Min: speedMps < cityWalletConfig.triggerThresholds.browsingSpeedMps ? 1 : 0,
+    dwellStopsLast10Min: speedMps < config.triggerThresholds.browsingSpeedMps ? 1 : 0,
     nearbyMerchantIds: []
   };
 };
@@ -90,7 +91,8 @@ export const buildContextState = async (
   userId?: string,
   previousPoint?: GeoPoint
 ): Promise<{ context: ContextState; merchants: Merchant[] }> => {
-  const config = getRuntimeConfig();
+  const runtimeConfig = getRuntimeConfig();
+  const scenarioConfig = cityWalletConfigForPoint(point);
   const time = getTimeSignal();
   const [weather, merchants, events] = await Promise.all([
     fetchWeather(point),
@@ -99,27 +101,27 @@ export const buildContextState = async (
   ]);
   const demandSignals = merchants.length ? await fetchPayoneDemand(merchants.map((merchant) => merchant.id)) : [];
   const location = {
-    ...buildLocationSignal(point, previousPoint),
+    ...buildLocationSignal(point, previousPoint, scenarioConfig),
     nearbyMerchantIds: merchants.map((merchant) => merchant.id)
   };
 
   const nearbyMerchants = merchants.filter((merchant) => {
     const distance = distanceMeters(location.userPosition, merchant.location);
-    return distance <= cityWalletConfig.triggerThresholds.geofenceRadiusM;
+    return distance <= scenarioConfig.triggerThresholds.geofenceRadiusM;
   });
 
   const rankedMerchantIds = [...nearbyMerchants]
     .sort(
       (a, b) =>
-        merchantScore(b, location, time, weather, events, getMerchantDemand(b.id, demandSignals)) -
-        merchantScore(a, location, time, weather, events, getMerchantDemand(a.id, demandSignals))
+        merchantScore(scenarioConfig, b, location, time, weather, events, getMerchantDemand(b.id, demandSignals)) -
+        merchantScore(scenarioConfig, a, location, time, weather, events, getMerchantDemand(a.id, demandSignals))
     )
     .map((merchant) => merchant.id);
 
-  const cold = weather.temperatureC <= cityWalletConfig.triggerThresholds.coldTemperatureC;
-  const browsing = location.speedMps <= cityWalletConfig.triggerThresholds.browsingSpeedMps;
+  const cold = weather.temperatureC <= scenarioConfig.triggerThresholds.coldTemperatureC;
+  const browsing = location.speedMps <= scenarioConfig.triggerThresholds.browsingSpeedMps;
   const quietMerchant = demandSignals.some(
-    (signal) => signal.quietnessScore <= cityWalletConfig.triggerThresholds.quietnessScore
+    (signal) => signal.quietnessScore <= scenarioConfig.triggerThresholds.quietnessScore
   );
   const topMerchant = nearbyMerchants.find((merchant) => merchant.id === rankedMerchantIds[0]);
   const topDemand = topMerchant ? getMerchantDemand(topMerchant.id, demandSignals) : undefined;
@@ -136,7 +138,7 @@ export const buildContextState = async (
     context: {
       id: `context-${Date.now()}`,
       city: weather.city,
-      userId: userId || config.userId,
+      userId: userId || runtimeConfig.userId,
       generatedAt: time.localIsoTime,
       signals: [weather, location, time, ...events, ...demandSignals],
       compositeState: [
@@ -172,19 +174,19 @@ export const buildContextState = async (
         {
           category: "location",
           label: `${location.userPosition.latitude.toFixed(5)}, ${location.userPosition.longitude.toFixed(5)}`,
-          source: cityWalletConfig.signalSources.location,
+          source: scenarioConfig.signalSources.location,
           status: "device"
         },
         {
           category: "time",
           label: `${time.dayOfWeek} ${time.window}`,
-          source: cityWalletConfig.signalSources.time,
+          source: scenarioConfig.signalSources.time,
           status: "device"
         },
         {
           category: "event",
           label: events[0]?.title || "No live event in range",
-          source: cityWalletConfig.signalSources.event,
+          source: scenarioConfig.signalSources.event,
           status: events.length ? "live" : "not_configured"
         },
         {
@@ -192,7 +194,7 @@ export const buildContextState = async (
           label: topDemand
             ? `${topDemand.currentTransactionsPerHour}/${topDemand.baselineTransactionsPerHour} tx/hour`
             : "No transaction-density signal returned",
-          source: cityWalletConfig.signalSources.demand,
+          source: scenarioConfig.signalSources.demand,
           status: topDemand?.source === "payone_demo" ? "demo" : topDemand ? "live" : "not_configured"
         }
       ],
