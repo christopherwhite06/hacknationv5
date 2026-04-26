@@ -4015,6 +4015,9 @@ function MerchantScreen({
         />
         <Metric label="Quiet-hour lift" value={`${analytics?.quietHourLiftPercent ?? 0}%`} />
         <Text style={styles.caption}>
+          Funnel basis: impressions are generated offers, accepts are issued checkout tokens, declines are aggregate dismisses, and redemptions are validated merchant scans.
+        </Text>
+        <Text style={styles.caption}>
           Lift basis: {analytics?.quietHourLiftBasis?.replaceAll("_", " ") || "not measured"}. Spark will not invent post-campaign lift without a Payone baseline.
         </Text>
       </View>
