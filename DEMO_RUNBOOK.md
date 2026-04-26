@@ -18,7 +18,7 @@ The smoke test must confirm:
 - Stuttgart does not reuse Royal Holloway event data before a Stuttgart event adapter is configured.
 - Payone density returns labelled `payone_demo` signals only when the demo connector is enabled, and no demand signal otherwise.
 - Duplicate accounts, wrong passwords, zero-value event rates, and invalid merchant rule schemas are rejected before the demo flow starts.
-- QR issue, token proof, no-user-id QR payload, redemption validation, daily cap rejection, and aggregate analytics all work.
+- QR issue, scanned-token proof validation, tampered QR rejection, no-user-id QR payload, daily cap rejection, and aggregate analytics all work.
 - Raw private graph export is rejected by the API because export is device-only.
 
 ## Emulator Path
@@ -43,7 +43,7 @@ Start on the `Demo` tab and show `Brief Coverage Evidence`. It should connect:
 
 - Context sensing: weather, device/map location, time, events when configured, and Payone/demo demand labels.
 - Generative offer: merchant guardrails plus generated copy, theme, CTA, timing, and source evidence.
-- Checkout: accept creates a one-time token with QR proof and no user ID in the QR payload, redeem validates it, analytics update in aggregate.
+- Checkout: accept creates a one-time token with QR proof and no user ID in the QR payload, redeem checks the scanned proof, analytics update in aggregate.
 - Merchant side: rule source, discount cap, daily cap, event intelligence, and measured checkout conversion.
 - Privacy: raw graph, routine, preferences, and precise movement stay local; cloud receives only abstract intent and public context.
 
