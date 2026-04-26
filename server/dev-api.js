@@ -705,7 +705,8 @@ const generatedOffer = (body) => {
       `${discountPercent}% cashback`,
       `${product} now`,
       "Expires in 12 minutes",
-      openingFact
+      openingFact,
+      "Claim offer"
     ]
   };
   generatedOffers.set(offer.id, {

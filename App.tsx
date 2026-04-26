@@ -1631,7 +1631,7 @@ function MapScreen({
   const [currentPlace, setCurrentPlace] = useState<Location.LocationGeocodedAddress | undefined>();
   const [currentPlaceLoading, setCurrentPlaceLoading] = useState(false);
   const sparkSpeech = offer && merchant
-    ? `I found ${offer.discountPercent} percent cashback on ${offer.product} at ${merchant.name}. I can also search public internet deals beyond signed-up merchants.`
+    ? `${offer.discountPercent} percent cashback on ${offer.product} at ${merchant.name}. Claim it now; it expires in 12 minutes because ${offer.visibleReasons[0] || "your live context matches the merchant guardrails"}.`
     : `I am checking your local context and public internet sources for useful nearby offers.`;
 
   useEffect(() => {
@@ -3302,10 +3302,6 @@ function OfferScreen({
         <Text style={styles.offerTitle}>{offer.discountPercent}% cashback</Text>
         <Text style={styles.merchantName}>{merchantName}</Text>
         <Text style={styles.offerBody}>{offer.product} · expires {expiresAt}</Text>
-        <Text style={styles.offerBody}>{offer.body}</Text>
-        <Text style={styles.offerBody}>Why now: {primaryReason}</Text>
-        <Text style={styles.couponCode}>Code: {offer.couponCode}</Text>
-
         <View style={styles.factGrid}>
           {offer.firstThreeSecondFacts.map((fact) => (
             <View key={fact} style={styles.fact}>
@@ -3313,6 +3309,9 @@ function OfferScreen({
             </View>
           ))}
         </View>
+        <Text style={styles.offerBody}>{offer.body}</Text>
+        <Text style={styles.offerBody}>Why now: {primaryReason}</Text>
+        <Text style={styles.couponCode}>Code: {offer.couponCode}</Text>
 
         <View style={styles.row}>
           <TouchableOpacity style={styles.primaryButtonFlex} onPress={onAccept}>

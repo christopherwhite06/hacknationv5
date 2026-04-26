@@ -108,6 +108,9 @@ const main = async () => {
     if (offer.visualTheme.icon !== "rain") {
       throw new Error(`Expected rain-themed offer icon, got ${offer.visualTheme.icon}.`);
     }
+    if (!offer.firstThreeSecondFacts.includes("Claim offer")) {
+      throw new Error(`Expected first-three-second facts to include the CTA, got ${JSON.stringify(offer.firstThreeSecondFacts)}.`);
+    }
 
     const token = await requestJson("/redemptions/issue", {
       method: "POST",
