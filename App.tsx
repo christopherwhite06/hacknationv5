@@ -4339,6 +4339,7 @@ function KnowledgeGraphScreen({
   const activeFromNode = graph.nodes.find((node) => node.id === activeEdge?.from);
   const activeToNode = graph.nodes.find((node) => node.id === activeEdge?.to);
   const routeEvidence = [
+    graphPaused ? "Graph pause is active: stored nodes are visible for inspection, but Spark will not reuse them for deal discovery." : undefined,
     intent ? `Abstract intent: ${intent.abstractSignal}` : undefined,
     activeEdge ? `Active relation: ${activeEdge.relation.replaceAll("_", " ")}` : undefined,
     `Focused cluster: ${agentClusterMeta.label}`,
@@ -4357,10 +4358,11 @@ function KnowledgeGraphScreen({
                 : `Spark is routing through ${agentClusterMeta.label}: ${agentClusterMeta.body}`}
             </Text>
           </View>
-          <View style={styles.sparkFace}>
+          <View style={[styles.sparkFace, graphPaused && styles.buttonDisabled]}>
             <Text style={styles.sparkFaceText}>AI</Text>
           </View>
         </View>
+        <Text style={styles.statusBadge}>{graphPaused ? "paused" : "local traversal"}</Text>
         {intent && <Text style={styles.signalPill}>Intent: {intent.abstractSignal}</Text>}
       </View>
 
