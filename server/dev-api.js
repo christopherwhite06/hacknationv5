@@ -240,6 +240,12 @@ const addLedgerEntry = (userId, entry) => {
 const couponCode = (merchantId) =>
   `SPARK-${merchantId.slice(0, 2).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
+const qrPayloadProof = ({ tokenId, offerId, merchantId, ruleId, couponCode }) =>
+  crypto
+    .createHmac("sha256", process.env.CITY_WALLET_QR_PROOF_SECRET || "city-wallet-local-dev")
+    .update([tokenId, offerId, merchantId, ruleId, couponCode].join("|"))
+    .digest("hex");
+
 const hashPassword = (password, salt) =>
   crypto.scryptSync(String(password), salt, 32).toString("hex");
 
@@ -1050,6 +1056,13 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const tokenId = `token-${Date.now()}`;
+      const qrPayload = {
+        tokenId,
+        offerId: body.offerId,
+        merchantId: body.merchantId,
+        ruleId: offerRecord.ruleId,
+        couponCode: body.couponCode
+      };
       const token = {
         id: tokenId,
         offerId: body.offerId,
@@ -1058,7 +1071,7 @@ const server = http.createServer(async (req, res) => {
         userId: body.userId,
         couponCode: body.couponCode,
         cashbackCents: Number(body.cashbackCents || 0),
-        qrPayload: JSON.stringify({ tokenId, offerId: body.offerId, merchantId: body.merchantId, ruleId: offerRecord.ruleId, couponCode: body.couponCode }),
+        qrPayload: JSON.stringify({ ...qrPayload, proof: qrPayloadProof(qrPayload) }),
         issuedAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 12 * 60 * 1000).toISOString(),
         status: "issued"

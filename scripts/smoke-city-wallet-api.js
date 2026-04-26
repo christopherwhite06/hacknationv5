@@ -317,7 +317,7 @@ const main = async () => {
       })
     });
     const qrPayload = JSON.parse(token.qrPayload);
-    if (qrPayload.userId || qrPayload.tokenId !== token.id) {
+    if (qrPayload.userId || qrPayload.tokenId !== token.id || !qrPayload.proof || qrPayload.proof.length !== 64) {
       throw new Error(`Expected QR payload to expose token proof but not userId, got ${token.qrPayload}.`);
     }
 
