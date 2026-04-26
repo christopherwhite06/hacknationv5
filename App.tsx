@@ -2391,6 +2391,12 @@ function DemoJourneyScreen({
     .filter((connector) => /demo|payone/i.test(connector.name) || /demo/i.test(connector.detail))
     .map((connector) => `${connector.name}: ${connector.detail}`);
   const liveOrDeviceSignals = context?.sourceEvidence.filter((evidence) => evidence.status === "live" || evidence.status === "device") || [];
+  const sourceStatusSummary = (["live", "device", "demo", "not_configured"] as ContextState["sourceEvidence"][number]["status"][])
+    .map((status) => ({
+      status,
+      count: context?.sourceEvidence.filter((evidence) => evidence.status === status).length || 0
+    }))
+    .filter((item) => item.count > 0);
   const generatedEvidence = offer?.generationEvidence;
   const checkoutStatus = token
     ? `${token.status} token, ${analytics?.redemptions ?? 0} merchant redemptions`
@@ -2535,6 +2541,11 @@ function DemoJourneyScreen({
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Visible Source Evidence</Text>
+        {sourceStatusSummary.length > 0 && (
+          <Text style={styles.caption}>
+            {sourceStatusSummary.map((item) => `${item.count} ${item.status.replaceAll("_", " ")}`).join(" · ")}
+          </Text>
+        )}
         {context?.sourceEvidence.length ? (
           context.sourceEvidence.map((evidence) => (
             <View key={`${evidence.category}-${evidence.source}`} style={styles.ledgerRow}>
