@@ -1302,13 +1302,13 @@ export default function App() {
       setLocationSource(simulatedTravelEnabled ? "simulated" : "map");
       setTravelStatus(
         simulatedTravelEnabled
-          ? `Simulated map center moved at ${simulatedTravelSpeedKmh || "0"} km/h to ${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}.`
+          ? `Simulated map center moved to ${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)} with a labelled ${simulatedTravelSpeedKmh || "0"} km/h scenario speed.`
           : `Map moved Spark's active location to ${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}.`
       );
       await loadPipelineForPoint(
         point,
         simulatedTravelEnabled
-          ? `Simulated map center moved the user dot at ${simulatedTravelSpeedKmh || "0"} km/h and refreshed live context.`
+          ? `Simulated map center refreshed live context with a labelled ${simulatedTravelSpeedKmh || "0"} km/h scenario speed.`
           : "Map movement changed Spark's active area and refreshed live context."
       );
     } catch (caught) {
@@ -1950,12 +1950,13 @@ function MapScreen({
             </View>
             <TextInput
               style={styles.input}
-              placeholder="Travel speed km/h"
+              placeholder="Labelled scenario speed km/h"
               placeholderTextColor="#8A8A8A"
               keyboardType="numeric"
               value={simulatedTravelSpeedKmh}
               onChangeText={(value) => onChangeSimulatedTravelSpeed(value.replace(/[^0-9.]/g, ""))}
             />
+            <Text style={styles.caption}>Speed is a labelled demo assumption for movement context; Spark still uses the selected map point and live connectors.</Text>
             <Text style={styles.caption}>{travelStatus}</Text>
           </View>
         )}
