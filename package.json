@@ -12,6 +12,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "smoke:api": "node scripts/smoke-city-wallet-api.js",
+    "smoke:full": "npm run typecheck && npm run smoke:api",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

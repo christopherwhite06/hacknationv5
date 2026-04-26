@@ -7,8 +7,7 @@ Use this checklist before showing the hackathon demo.
 Run:
 
 ```bash
-npm run typecheck
-npm run smoke:api
+npm run smoke:full
 ```
 
 The smoke test must confirm:
