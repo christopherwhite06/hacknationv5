@@ -15,6 +15,7 @@ The smoke test must confirm:
 - Demo Payone demand and demo merchant campaigns are labelled as degraded/demo connectors.
 - Open-Meteo, Royal Holloway events, and OpenStreetMap show adapter-ready/degraded status until live context loading exercises them.
 - Hermes/Gemini and Local Gemma show adapter-ready/degraded status unless a live runtime is actually probed.
+- QR proof secret health is visible; local dev fallback is labelled degraded until `CITY_WALLET_QR_PROOF_SECRET` is configured.
 - Stuttgart and current-GPS event evidence show config-needed source labels instead of reusing Royal Holloway event data.
 - Payone density returns labelled `payone_demo` signals only when the demo connector is enabled, and no demand signal otherwise.
 - Duplicate account emails/usernames, including case-only and whitespace-only username duplicates, wrong passwords, zero-value event rates, and invalid merchant rule schemas are rejected before the demo flow starts.
