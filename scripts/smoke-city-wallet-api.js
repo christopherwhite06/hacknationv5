@@ -116,6 +116,17 @@ const main = async () => {
     if (rejectedSession.status !== 401) {
       throw new Error(`Expected wrong password to be rejected, got ${rejectedSession.status}: ${await rejectedSession.text()}`);
     }
+    const acceptedSession = await requestJson("/sessions", {
+      method: "POST",
+      body: JSON.stringify({
+        email: accountEmail,
+        password: "correct-horse",
+        accountType: "user"
+      })
+    });
+    if (!acceptedSession.sessionToken || acceptedSession.passwordHash || acceptedSession.passwordSalt) {
+      throw new Error(`Expected successful login without password fields, got ${JSON.stringify(acceptedSession)}.`);
+    }
 
     await requestJson(`/merchants/${merchantId}/event-intelligence`, {
       method: "POST",
