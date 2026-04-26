@@ -1,4 +1,5 @@
 const http = require("http");
+const crypto = require("crypto");
 const { URL } = require("url");
 
 const port = Number(process.env.CITY_WALLET_API_PORT || 3001);
@@ -235,6 +236,9 @@ const addLedgerEntry = (userId, entry) => {
 
 const couponCode = (merchantId) =>
   `SPARK-${merchantId.slice(0, 2).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+const hashPassword = (password) =>
+  crypto.createHash("sha256").update(`city-wallet-dev:${password}`).digest("hex");
 
 const distanceMeters = (from, to) => {
   const earthRadiusM = 6371000;
@@ -773,7 +777,7 @@ const server = http.createServer(async (req, res) => {
         username: body.username,
         email: body.email,
         accountType: body.accountType === "business" ? "business" : "user",
-        passwordHash: `dev-${Buffer.from(body.password).toString("base64")}`,
+        passwordHash: hashPassword(body.password),
         sessionToken: `session-${Date.now()}`
       };
       accounts.set(body.email, profile);
@@ -790,8 +794,16 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && path === "/sessions") {
       const body = await readJsonBody(req);
       const profile = accounts.get(body.email);
+      if (!body.password) {
+        json(res, 400, { error: "password is required" });
+        return;
+      }
       if (!profile) {
         json(res, 401, { error: "Account not found. Create a real account before signing in." });
+        return;
+      }
+      if (profile.passwordHash !== hashPassword(body.password)) {
+        json(res, 401, { error: "Invalid password." });
         return;
       }
       json(res, 200, {

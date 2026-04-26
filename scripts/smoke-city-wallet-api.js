@@ -67,6 +67,32 @@ const main = async () => {
     if (stuttgartEvents.length !== 0) {
       throw new Error(`Expected no Royal Holloway events for Stuttgart until a Stuttgart adapter is configured, got ${JSON.stringify(stuttgartEvents)}.`);
     }
+    const accountEmail = `smoke-${Date.now()}@example.test`;
+    await requestJson("/accounts", {
+      method: "POST",
+      body: JSON.stringify({
+        username: `smoke-account-${Date.now()}`,
+        email: accountEmail,
+        password: "correct-horse",
+        accountType: "user"
+      })
+    });
+    const rejectedSession = await fetch(`${baseUrl}/sessions`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: accountEmail,
+        password: "wrong-horse",
+        accountType: "user"
+      })
+    });
+
+    if (rejectedSession.status !== 401) {
+      throw new Error(`Expected wrong password to be rejected, got ${rejectedSession.status}: ${await rejectedSession.text()}`);
+    }
 
     await requestJson(`/merchants/${merchantId}/event-intelligence`, {
       method: "POST",
