@@ -77,7 +77,7 @@ export const stuttgartConfig: CityWalletConfig = {
   },
   signalSources: {
     ...eghamConfig.signalSources,
-    event: "Configurable city event adapter; Royal Holloway adapter is active until Stuttgart credentials are connected",
+    event: "Config needed: connect a Stuttgart event adapter before using event signals",
     demand: "Payone transaction density feed or clearly-labelled local demo connector"
   }
 };
@@ -89,7 +89,8 @@ export const gpsConfig: CityWalletConfig = {
   defaultPoint: undefined,
   signalSources: {
     ...eghamConfig.signalSources,
-    location: "Current device GPS geofence adapter"
+    location: "Current device GPS geofence adapter",
+    event: "Config needed outside Egham until a local city event adapter is connected"
   }
 };
 
