@@ -15,6 +15,7 @@ The smoke test must confirm:
 - Demo Payone demand and demo merchant campaigns are labelled as degraded/demo connectors.
 - Hermes/Gemini and Local Gemma show adapter-ready/degraded status unless a live runtime is actually probed.
 - Stuttgart does not reuse Royal Holloway event data before a Stuttgart event adapter is configured.
+- Duplicate accounts, wrong passwords, and zero-value merchant rules are rejected before the demo flow starts.
 - QR issue, redemption validation, daily cap rejection, and aggregate analytics all work.
 - Raw private graph export is rejected by the API because export is device-only.
 
