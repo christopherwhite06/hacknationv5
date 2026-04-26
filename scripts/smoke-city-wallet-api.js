@@ -144,6 +144,22 @@ const main = async () => {
     if (!acceptedSession.sessionToken || acceptedSession.passwordHash || acceptedSession.passwordSalt) {
       throw new Error(`Expected successful login without password fields, got ${JSON.stringify(acceptedSession)}.`);
     }
+    const encodedUsername = `smoke user/${Date.now()}`;
+    const encodedAccountEmail = `encoded-${Date.now()}@example.test`;
+    await requestJson("/accounts", {
+      method: "POST",
+      body: JSON.stringify({
+        username: encodedUsername,
+        email: encodedAccountEmail,
+        password: "correct-horse",
+        accountType: "user"
+      })
+    });
+    const encodedUser = await requestJson(`/users/${encodeURIComponent(encodedUsername)}`);
+    const encodedLedger = await requestJson(`/users/${encodeURIComponent(encodedUsername)}/ledger`);
+    if (encodedUser.id !== encodedUsername || !Array.isArray(encodedLedger)) {
+      throw new Error(`Expected encoded user routes to round-trip decoded, got ${JSON.stringify({ encodedUser, encodedLedger })}.`);
+    }
 
     await requestJson(`/merchants/${merchantId}/event-intelligence`, {
       method: "POST",

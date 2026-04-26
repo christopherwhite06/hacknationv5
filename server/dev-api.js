@@ -775,7 +775,7 @@ const server = http.createServer(async (req, res) => {
     const path = url.pathname;
 
     if (req.method === "GET" && path.startsWith("/users/") && path.endsWith("/ledger")) {
-      json(res, 200, userLedger(path.split("/")[2]));
+      json(res, 200, userLedger(decodeURIComponent(path.split("/")[2])));
       return;
     }
 
