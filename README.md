@@ -94,7 +94,7 @@ Run the full validation suite before demo-critical changes:
 npm run smoke:full
 ```
 
-The full smoke command runs TypeScript validation, then starts `server/dev-api.js` on isolated local ports with clearly labelled demo Payone demand and demo merchant supply enabled. It validates connector health, including adapter-ready/degraded status for public adapters that are not probed by the health route, duplicate-account and wrong-password rejection, merchant manual rate influence on generated offers, event-rate and merchant-rule guardrails, context-responsive offer theming, QR/token issue, coupon-code match validation, full scanned-payload validation, replay rejection, idempotent decline analytics, city/source scenarios, and aggregate merchant analytics.
+The full smoke command runs TypeScript validation, then starts `server/dev-api.js` on isolated local ports with clearly labelled demo Payone demand and demo merchant supply enabled. It validates connector health, including adapter-ready/degraded status for public adapters that are not probed by the health route, duplicate account email/username and wrong-password rejection, merchant manual rate influence on generated offers, event-rate and merchant-rule guardrails, context-responsive offer theming, QR/token issue, coupon-code match validation, full scanned-payload validation, replay rejection, idempotent decline analytics, city/source scenarios, and aggregate merchant analytics.
 
 For a faster city/data-source audit only, run:
 
