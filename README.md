@@ -93,9 +93,9 @@ Local Gemma is expected through Ollama at:
 
 The app currently exposes four browser-agent choices:
 
-- Gemini 2.5 Pro
-- Gemini 2.5 Flash
-- Gemini 2.0 Flash
+- Gemini 3.1 Pro Preview
+- Gemini 3.0 Flash Preview
+- Gemini 3.1 Flash Lite Preview
 - Gemma private local mode
 
 The Gemini path is routed through the Hermes endpoint. Gemma private mode calls the local Ollama runtime directly.

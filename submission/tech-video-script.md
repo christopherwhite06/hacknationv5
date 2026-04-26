@@ -41,7 +41,7 @@ Point to the Gemma branch and Hermes/Gemini branch.
 
 Voiceover:
 
-"Private intent can run through local Gemma. Public deal discovery runs through Hermes using Gemini 2.5 Pro, Gemini 2.5 Flash, or Gemini 2.0 Flash with only abstract intent and non-personal context."
+"Private intent can run through local Gemma. Public deal discovery runs through Hermes using Gemini 3.1 Pro Preview, Gemini 3.0 Flash Preview, or Gemini 3.1 Flash Lite Preview with only abstract intent and non-personal context."
 
 ### 28-38s: Knowledge Graph
 

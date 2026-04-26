@@ -182,7 +182,8 @@ const storageKeys = {
   onboarding: "city-wallet-onboarding-complete",
   graphResetMarker: "city-wallet-graph-reset-marker",
   graphPaused: "city-wallet-graph-paused",
-  theme: "city-wallet-theme"
+  theme: "city-wallet-theme",
+  aiVoiceVolume: "city-wallet-ai-voice-volume"
 };
 const graphResetVersion = "2026-04-26-fresh-live-graph";
 const privacyPausedGraph: LocalKnowledgeGraph = { nodes: [], edges: [] };
@@ -194,11 +195,13 @@ const currencyOptions: Array<{ code: CurrencyCode; symbol: string; eurRate: numb
 ];
 
 const browserAgentOptions: Array<{ mode: BrowserAgentMode; label: string }> = [
-  { mode: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-  { mode: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { mode: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+  { mode: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
+  { mode: "gemini-3.0-flash-preview", label: "Gemini 3.0 Flash Preview" },
+  { mode: "gemini-3.1-flash-lite-preview", label: "Gemini 3.1 Flash Lite Preview" },
   { mode: "gemma", label: "Gemma 4 private" }
 ];
+
+const aiVoiceVolumeOptions = [0, 0.25, 0.5, 0.75, 1];
 
 const isGeminiBrowserMode = (mode: BrowserAgentMode) => mode !== "gemma";
 
@@ -395,8 +398,9 @@ export default function App() {
   const [travelStatus, setTravelStatus] = useState("Simulation off. Real GPS is used as the starting point.");
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [graphPaused, setGraphPaused] = useState(false);
-  const [browserAgentMode, setBrowserAgentMode] = useState<BrowserAgentMode>("gemini-2.5-pro");
+  const [browserAgentMode, setBrowserAgentMode] = useState<BrowserAgentMode>("gemini-3.1-pro-preview");
   const [currency, setCurrency] = useState<CurrencyCode>("EUR");
+  const [aiVoiceVolume, setAiVoiceVolume] = useState(0.75);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [graphResetComplete, setGraphResetComplete] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -609,6 +613,7 @@ export default function App() {
         storedBusinessAccount,
         storedBrowserAgentMode,
         storedCurrency,
+        storedAiVoiceVolume,
         storedOnboarding,
         storedTheme,
         storedGraphPaused
@@ -618,6 +623,7 @@ export default function App() {
         AsyncStorage.getItem(storageKeys.businessAccount),
         AsyncStorage.getItem(storageKeys.browserAgentMode),
         AsyncStorage.getItem(storageKeys.currency),
+        AsyncStorage.getItem(storageKeys.aiVoiceVolume),
         AsyncStorage.getItem(storageKeys.onboarding),
         AsyncStorage.getItem(storageKeys.theme),
         AsyncStorage.getItem(storageKeys.graphPaused)
@@ -667,20 +673,17 @@ export default function App() {
       if (storedTheme === "light" || storedTheme === "dark") {
         setThemeMode(storedTheme);
       }
-      if (
-        storedBrowserAgentMode === "gemini" ||
-        storedBrowserAgentMode === "gemini-3.1-pro-preview"
-      ) {
-        setBrowserAgentMode("gemini-2.5-pro");
-      } else if (storedBrowserAgentMode === "gemini-3.0-flash-preview") {
-        setBrowserAgentMode("gemini-2.5-flash");
-      } else if (storedBrowserAgentMode === "gemini-3.1-flash-lite-preview") {
-        setBrowserAgentMode("gemini-2.0-flash");
+      if (storedBrowserAgentMode === "gemini") {
+        setBrowserAgentMode("gemini-3.1-pro-preview");
       } else if (browserAgentOptions.some((option) => option.mode === storedBrowserAgentMode)) {
         setBrowserAgentMode(storedBrowserAgentMode as BrowserAgentMode);
       }
       if (storedCurrency === "EUR" || storedCurrency === "USD" || storedCurrency === "GBP") {
         setCurrency(storedCurrency);
+      }
+      const parsedVoiceVolume = storedAiVoiceVolume ? Number(storedAiVoiceVolume) : NaN;
+      if (Number.isFinite(parsedVoiceVolume)) {
+        setAiVoiceVolume(Math.max(0, Math.min(1, parsedVoiceVolume)));
       }
       setOnboardingComplete(storedOnboarding === "true");
       setGraphPaused(storedGraphPaused === "true");
@@ -1131,6 +1134,12 @@ export default function App() {
     await AsyncStorage.setItem(storageKeys.currency, nextCurrency);
   };
 
+  const changeAiVoiceVolume = async (nextVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, nextVolume));
+    setAiVoiceVolume(clampedVolume);
+    await AsyncStorage.setItem(storageKeys.aiVoiceVolume, String(clampedVolume));
+  };
+
   const completeOnboarding = async () => {
     await AsyncStorage.setItem(storageKeys.onboarding, "true");
     setOnboardingComplete(true);
@@ -1177,9 +1186,24 @@ export default function App() {
       return;
     }
 
+    if (targetType === "business" && account?.accountType === "user") {
+      await AsyncStorage.setItem(storageKeys.customerAccount, JSON.stringify(account));
+      setCustomerAccount(account);
+    }
+
+    const recoveredCustomerAccount = customerAccount || (
+      targetType === "user" && account?.accountType === "business"
+        ? {
+            ...account,
+            username: account.username.replace(/-business$/i, ""),
+            accountType: "user" as const,
+            password: ""
+          }
+        : undefined
+    );
     const targetAccount = targetType === "business"
       ? businessAccount
-      : customerAccount || (account?.accountType === "user" ? account : undefined);
+      : recoveredCustomerAccount || (account?.accountType === "user" ? account : undefined);
     if (targetAccount) {
       await AsyncStorage.setItem(storageKeys.account, JSON.stringify(targetAccount));
       if (targetType === "user") {
@@ -1507,6 +1531,7 @@ export default function App() {
               walletUser={walletUser}
               browserAgentMode={browserAgentMode}
               currency={currency}
+              aiVoiceVolume={aiVoiceVolume}
               themeMode={themeMode}
               activeCityConfig={activeCityConfig}
               onChangeMode={setAuthMode}
@@ -1517,6 +1542,7 @@ export default function App() {
               onSignOut={signOut}
               onChangeBrowserAgentMode={changeBrowserAgentMode}
               onChangeCurrency={changeCurrency}
+              onChangeAiVoiceVolume={changeAiVoiceVolume}
               graphPaused={graphPaused}
               onPauseGraph={pauseGraph}
               onToggleTheme={toggleTheme}
@@ -1620,6 +1646,7 @@ export default function App() {
             travelStatus={travelStatus}
             userPoint={userPoint}
             locationSource={locationSource}
+            aiVoiceVolume={aiVoiceVolume}
             onChangeSimulatedTravelSpeed={setSimulatedTravelSpeedKmh}
             onChangeManualPrompt={setManualPrompt}
             onChangeManualPromptMode={setManualPromptMode}
@@ -1711,6 +1738,7 @@ export default function App() {
             walletUser={walletUser}
             browserAgentMode={browserAgentMode}
             currency={currency}
+            aiVoiceVolume={aiVoiceVolume}
             themeMode={themeMode}
             activeCityConfig={activeCityConfig}
             onChangeMode={setAuthMode}
@@ -1721,6 +1749,7 @@ export default function App() {
             onSignOut={signOut}
             onChangeBrowserAgentMode={changeBrowserAgentMode}
             onChangeCurrency={changeCurrency}
+            onChangeAiVoiceVolume={changeAiVoiceVolume}
             graphPaused={graphPaused}
             onPauseGraph={pauseGraph}
             onToggleTheme={toggleTheme}
@@ -1742,6 +1771,7 @@ export default function App() {
             analytics={analytics}
             activeOffer={offer}
             context={context}
+            aiVoiceVolume={aiVoiceVolume}
             eventIntelligence={eventIntelligence}
             eventScanResult={eventScanResult}
             merchant={businessMerchant}
@@ -1792,6 +1822,7 @@ function MapScreen({
   travelStatus,
   userPoint,
   locationSource,
+  aiVoiceVolume,
   onChangeSimulatedTravelSpeed,
   onChangeManualPrompt,
   onChangeManualPromptMode,
@@ -1826,6 +1857,7 @@ function MapScreen({
   travelStatus: string;
   userPoint?: GeoPoint;
   locationSource?: LocationPointSource;
+  aiVoiceVolume: number;
   onChangeSimulatedTravelSpeed: (speed: string) => void;
   onChangeManualPrompt: (prompt: string) => void;
   onChangeManualPromptMode: (mode: "text" | "voice") => void;
@@ -1905,7 +1937,7 @@ function MapScreen({
             {Platform.OS === "ios" ? "Apple Maps" : Platform.OS === "android" ? "Google Maps + GPS" : "Map"}
           </Text>
         </View>
-        <SparkMapAgent message={sparkSpeech} />
+        <SparkMapAgent message={sparkSpeech} volume={aiVoiceVolume} />
       </View>
       <View style={styles.locationReadout}>
         <View style={styles.locationReadoutDot} />
@@ -2142,7 +2174,7 @@ const pickSparkVoice = async () => {
   return voices.find((voice) => /male|david|mark|alex|daniel|tom|guy/i.test(`${voice.name} ${voice.identifier}`));
 };
 
-function SparkMapAgent({ message }: { message: string }) {
+function SparkMapAgent({ message, volume }: { message: string; volume: number }) {
   const { styles, theme } = useThemeKit();
   const hover = useRef(new Animated.Value(0)).current;
   const bubbleOpacity = useRef(new Animated.Value(0)).current;
@@ -2245,7 +2277,8 @@ function SparkMapAgent({ message }: { message: string }) {
         voice: voice?.identifier,
         language: "en-US",
         pitch: 1.08,
-        rate: 0.92
+        rate: 0.92,
+        volume
       });
     };
 
@@ -2255,11 +2288,11 @@ function SparkMapAgent({ message }: { message: string }) {
       active = false;
       Speech.stop();
     };
-  }, [message]);
+  }, [message, volume]);
 
   const onPressAgent = () => {
     Speech.stop();
-    Speech.speak(message, { language: "en-US", pitch: 1.08, rate: 0.92 });
+    Speech.speak(message, { language: "en-US", pitch: 1.08, rate: 0.92, volume });
 
     if (bubbleOpen) {
       setBubbleOpen(false);
@@ -2933,6 +2966,7 @@ function ProfileScreen({
   walletUser,
   browserAgentMode,
   currency,
+  aiVoiceVolume,
   themeMode,
   activeCityConfig,
   onChangeMode,
@@ -2943,6 +2977,7 @@ function ProfileScreen({
   onSignOut,
   onChangeBrowserAgentMode,
   onChangeCurrency,
+  onChangeAiVoiceVolume,
   graphPaused,
   onPauseGraph,
   onToggleTheme
@@ -2953,6 +2988,7 @@ function ProfileScreen({
   walletUser?: WalletUser;
   browserAgentMode: BrowserAgentMode;
   currency: CurrencyCode;
+  aiVoiceVolume: number;
   themeMode: ThemeMode;
   activeCityConfig: CityWalletConfig;
   onChangeMode: (mode: AuthMode) => void;
@@ -2963,6 +2999,7 @@ function ProfileScreen({
   onSignOut: () => void;
   onChangeBrowserAgentMode: (mode: BrowserAgentMode) => void;
   onChangeCurrency: (currency: CurrencyCode) => void;
+  onChangeAiVoiceVolume: (volume: number) => void;
   graphPaused: boolean;
   onPauseGraph: (paused: boolean) => Promise<void>;
   onToggleTheme: () => void;
@@ -3042,6 +3079,23 @@ function ProfileScreen({
             <Text style={styles.caption}>
               Gemini models use Hermes for live deal discovery. Gemma is local/private but cannot browse live sites.
             </Text>
+          </View>
+          <View style={styles.settingBlock}>
+            <Text style={styles.ruleLine}>Spark voice volume</Text>
+            <View style={styles.authToggleRow}>
+              {aiVoiceVolumeOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.authToggle, aiVoiceVolume === option && styles.authToggleActive]}
+                  onPress={() => onChangeAiVoiceVolume(option)}
+                >
+                  <Text style={[styles.authToggleText, aiVoiceVolume === option && styles.authToggleTextActive]}>
+                    {Math.round(option * 100)}%
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.caption}>Controls Spark's spoken map updates and merchant recommendations.</Text>
           </View>
         </View>
 
@@ -3917,6 +3971,7 @@ function MerchantScreen({
   analytics,
   activeOffer,
   context,
+  aiVoiceVolume,
   eventIntelligence,
   eventScanResult,
   merchant,
@@ -3927,6 +3982,7 @@ function MerchantScreen({
   analytics?: MerchantAnalytics;
   activeOffer?: GeneratedOffer;
   context?: ContextState;
+  aiVoiceVolume: number;
   eventIntelligence?: BusinessEventIntelligenceSettings;
   eventScanResult?: BusinessEventScanResult;
   merchant: Merchant;
@@ -4007,7 +4063,7 @@ function MerchantScreen({
     setPendingAiRule(nextRule);
     setSparkSummary(summary);
     Speech.stop();
-    Speech.speak(summary, { language: "en-GB", pitch: 1.02, rate: 0.9 });
+    Speech.speak(summary, { language: "en-GB", pitch: 1.02, rate: 0.9, volume: aiVoiceVolume });
   };
   const ruleGuardrailError =
     draftRule.maxDiscountPercent <= 0

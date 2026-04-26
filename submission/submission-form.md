@@ -66,7 +66,7 @@ Main technologies:
 - AsyncStorage for local account, ledger, settings, browser skills, and graph persistence.
 - React Native SVG for the knowledge graph preview and advanced graph canvas visuals.
 - Local Gemma through Ollama for private model calls.
-- Gemini 2.5 Pro, Gemini 2.5 Flash, and Gemini 2.0 Flash through the Hermes task endpoint.
+- Gemini 3.1 Pro Preview, Gemini 3.0 Flash Preview, and Gemini 3.1 Flash Lite Preview through the Hermes task endpoint.
 - Node.js local development API in `server/dev-api.js`.
 - Google Places, Open-Meteo, OpenStreetMap/Nominatim/Overpass, and Royal Holloway events as live grounding sources.
 - QR/token redemption with backend validation and aggregate merchant analytics.
@@ -87,7 +87,7 @@ The result is a working end-to-end Living Wallet prototype:
 - The customer can move around the map, refresh context, receive a generated offer, accept it, and redeem it through a QR token.
 - The merchant can switch into business mode, inspect local context, refresh events, receive Spark recommendations, edit campaign rules, and review aggregate performance.
 - The graph view shows how local memory connects context, places, preferences, routines, and offer outcomes.
-- The AI stack has been tested with four model paths: Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.0 Flash, and local Gemma.
+- The AI stack uses four model paths: Gemini 3.1 Pro Preview, Gemini 3.0 Flash Preview, Gemini 3.1 Flash Lite Preview, and local Gemma.
 - The live event refresh path has been tested against local event evidence and source links.
 
 The value is a more responsive local-commerce system: customers see fewer irrelevant offers, merchants get AI-assisted demand tools, and the city wallet becomes a trusted real-time layer between local context, payment, and redemption.

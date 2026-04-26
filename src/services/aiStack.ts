@@ -120,7 +120,7 @@ const discoverDealInsightWithGemma = async (
 export const discoverDealInsight = async (
   intent: LocalIntent,
   context: ContextState,
-  browserAgentMode: BrowserAgentMode = "gemini-2.5-pro",
+  browserAgentMode: BrowserAgentMode = "gemini-3.1-pro-preview",
   browserSkills: BrowserSkill[] = []
 ): Promise<AgentDealInsight> => {
   if (browserAgentMode === "gemma") {
@@ -128,38 +128,43 @@ export const discoverDealInsight = async (
   }
 
   const config = getRuntimeConfig();
-  const response = await fetch(`${config.hermesAgentUrl}/hermes/tasks`, {
+  const requestBody = JSON.stringify({
+    model: browserAgentMode,
+    browser: "hermes-agent",
+    task:
+      "Find current public internet deals, merchant pages, menus, product prices, event signals, whether the place appears open now, and grounded busy/popularity signals relevant to this abstract city-wallet intent. Include deals even when the business is not a signed-up City Wallet merchant. Return strict JSON matching AgentDealInsight.",
+    input: {
+      abstractIntent: intent.abstractSignal,
+      merchantCategory: intent.merchantCategory,
+      productHints: intent.productHints,
+      city: context.city,
+      compositeState: context.compositeState,
+      visibleContextReasons: context.visibleReasons,
+      browserSkills: browserSkills.map((skill) => ({
+        host: skill.host,
+        origin: skill.origin,
+        pathHint: skill.pathHint,
+        instruction: skill.instruction,
+        successCount: skill.successCount,
+        lastUsedAt: skill.lastUsedAt
+      }))
+    },
+    privacy:
+      "Do not request or infer private user graph, precise movement trail, name, or raw behavioral history. Use abstract intent and local browser skills for public-site navigation only. Verify live page content every time."
+  });
+  const requestHermes = (path: "/hermes/tasks" | "/tasks") => fetch(`${config.hermesAgentUrl}${path}`, {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
       Authorization: `Bearer ${config.geminiApiKey}`
     },
-    body: JSON.stringify({
-      model: browserAgentMode,
-      browser: "hermes-agent",
-      task:
-        "Find current public internet deals, merchant pages, menus, product prices, event signals, whether the place appears open now, and grounded busy/popularity signals relevant to this abstract city-wallet intent. Include deals even when the business is not a signed-up City Wallet merchant. Return strict JSON matching AgentDealInsight.",
-      input: {
-        abstractIntent: intent.abstractSignal,
-        merchantCategory: intent.merchantCategory,
-        productHints: intent.productHints,
-        city: context.city,
-        compositeState: context.compositeState,
-        visibleContextReasons: context.visibleReasons,
-        browserSkills: browserSkills.map((skill) => ({
-          host: skill.host,
-          origin: skill.origin,
-          pathHint: skill.pathHint,
-          instruction: skill.instruction,
-          successCount: skill.successCount,
-          lastUsedAt: skill.lastUsedAt
-        }))
-      },
-      privacy:
-        "Do not request or infer private user graph, precise movement trail, name, or raw behavioral history. Use abstract intent and local browser skills for public-site navigation only. Verify live page content every time."
-    })
+    body: requestBody
   });
+  let response = await requestHermes("/hermes/tasks");
+  if (response.status === 404) {
+    response = await requestHermes("/tasks");
+  }
 
   if (!response.ok) {
     const body = await response.text();

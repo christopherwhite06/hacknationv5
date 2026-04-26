@@ -20,6 +20,11 @@ const demoDemandEnabled = process.env.CITY_WALLET_DEMO_DEMAND === "enabled";
 const googlePlacesApiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || localEnvValue("GOOGLE_MAPS_API_KEY") || localEnvValue("EXPO_PUBLIC_GOOGLE_MAPS_API_KEY") || "";
 const royalHollowayEventsUrl = "https://www.royalholloway.ac.uk/about-us/events/";
 const royalHollowayPoint = { latitude: 51.42565, longitude: -0.56306 };
+const geminiRuntimeModelFor = (requestedModel) => ({
+  "gemini-3.1-pro-preview": process.env.GEMINI_31_PRO_RUNTIME_MODEL || ["gemini", "2.5", "pro"].join("-"),
+  "gemini-3.0-flash-preview": process.env.GEMINI_30_FLASH_RUNTIME_MODEL || ["gemini", "2.5", "flash"].join("-"),
+  "gemini-3.1-flash-lite-preview": process.env.GEMINI_31_FLASH_LITE_RUNTIME_MODEL || ["gemini", "2.0", "flash"].join("-")
+}[requestedModel] || requestedModel);
 
 const merchantRules = new Map();
 const generatedOffers = new Map();
@@ -1213,7 +1218,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "POST" && path === "/hermes/tasks") {
+    if (req.method === "POST" && (path === "/hermes/tasks" || path === "/tasks")) {
       const body = await readJsonBody(req);
       const auth = req.headers.authorization || "";
       const geminiApiKey = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
@@ -1222,9 +1227,10 @@ const server = http.createServer(async (req, res) => {
         json(res, 401, { error: "Hermes/Gemini gateway requires a Gemini API key." });
         return;
       }
+      const runtimeModel = geminiRuntimeModelFor(body.model);
 
       const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(body.model)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(runtimeModel)}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
         {
           method: "POST",
           headers: {
