@@ -4058,6 +4058,14 @@ function KnowledgeGraphScreen({
     setSelectedCluster(agentCluster);
   };
   const agentClusterMeta = graphClusterMeta[agentCluster];
+  const activeFromNode = graph.nodes.find((node) => node.id === activeEdge?.from);
+  const activeToNode = graph.nodes.find((node) => node.id === activeEdge?.to);
+  const routeEvidence = [
+    intent ? `Abstract intent: ${intent.abstractSignal}` : undefined,
+    activeEdge ? `Active relation: ${activeEdge.relation.replaceAll("_", " ")}` : undefined,
+    `Focused cluster: ${agentClusterMeta.label}`,
+    `${clusterCounts[agentCluster]} nodes available in this cluster`
+  ].filter(Boolean);
 
   return (
     <>
@@ -4277,7 +4285,13 @@ function KnowledgeGraphScreen({
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Live Agent Route</Text>
           <Text style={styles.ruleLine}>
-            Spark is travelling through {agentClusterMeta.label} because the active edge is `{activeEdge.relation}` from `{activeEdge.from}` to `{activeEdge.to}`.
+            Spark is travelling through {agentClusterMeta.label} from {activeFromNode?.label || activeEdge.from} to {activeToNode?.label || activeEdge.to}.
+          </Text>
+          {routeEvidence.map((item) => (
+            <Text key={item} style={styles.bullet}>- {item}</Text>
+          ))}
+          <Text style={styles.caption}>
+            This route is selected from local-only graph edges; cloud deal discovery receives only the abstract intent, not raw graph nodes.
           </Text>
         </View>
       )}
