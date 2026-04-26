@@ -125,6 +125,12 @@ export const buildContextState = async (
   );
   const topMerchant = nearbyMerchants.find((merchant) => merchant.id === rankedMerchantIds[0]);
   const topDemand = topMerchant ? getMerchantDemand(topMerchant.id, demandSignals) : undefined;
+  const topDemandDeltaPercent = topDemand && topDemand.baselineTransactionsPerHour > 0
+    ? Math.round(Math.abs(1 - topDemand.currentTransactionsPerHour / topDemand.baselineTransactionsPerHour) * 100)
+    : undefined;
+  const topDemandDirection = topDemand && topDemand.currentTransactionsPerHour <= topDemand.baselineTransactionsPerHour
+    ? "below"
+    : "above";
   const topOpenReason = topMerchant?.openStatus === "open"
     ? `${topMerchant.name} appears open from OSM opening_hours`
     : topMerchant?.openStatus === "closed"
@@ -158,7 +164,7 @@ export const buildContextState = async (
           ? `${topMerchant.name} is within ${Math.round(distanceMeters(location.userPosition, topMerchant.location))}m`
           : "No merchant in active geofence",
         topDemand
-          ? `${topDemand.source === "payone_demo" ? "Demo Payone density" : "Payone density"} is ${Math.round((1 - topDemand.currentTransactionsPerHour / topDemand.baselineTransactionsPerHour) * 100)}% from baseline`
+          ? `${topDemand.source === "payone_demo" ? "Demo Payone density" : "Payone density"} is ${topDemandDeltaPercent ?? 0}% ${topDemandDirection} baseline (${topDemand.currentTransactionsPerHour}/${topDemand.baselineTransactionsPerHour} tx/hour)`
           : "Payone demand is not connected, so no demand signal was inferred",
         topOpenReason,
         events[0] ? `Live local event signal: ${events[0].title}` : "No live local events found near the active area",
