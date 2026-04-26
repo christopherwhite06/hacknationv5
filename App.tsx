@@ -3768,6 +3768,14 @@ function MerchantScreen({
     : eventScanResult
       ? "live adapter"
       : "not scanned";
+  const ruleGuardrailError =
+    draftRule.maxDiscountPercent <= 0
+      ? "Campaign max discount must be above 0%."
+      : draftRule.dailyRedemptionCap <= 0
+        ? "Daily redemption cap must be at least 1."
+        : draftRule.eligibleProducts.length === 0
+          ? "Add at least one eligible product before saving."
+          : undefined;
 
   useEffect(() => {
     setDraftRule(withBusinessDefaults(rule));
@@ -3948,8 +3956,13 @@ function MerchantScreen({
           <Text style={styles.primaryButtonText}>{scanBusy ? "Scanning..." : "Scan local events now"}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.secondaryButton}
+          style={[styles.secondaryButton, ruleGuardrailError && styles.buttonDisabled]}
+          disabled={Boolean(ruleGuardrailError)}
           onPress={async () => {
+            if (ruleGuardrailError) {
+              setMerchantError(ruleGuardrailError);
+              return;
+            }
             try {
               await onSaveEventIntelligence({ manualDiscountPercent: draftRule.maxDiscountPercent });
               await onSaveRule({ ...draftRule, maxDiscountPercent: draftRule.maxDiscountPercent });
@@ -4060,7 +4073,13 @@ function MerchantScreen({
           placeholderTextColor="#8A8A8A"
           keyboardType="numeric"
           value={String(draftRule.maxDiscountPercent)}
-          onChangeText={(text) => setDraftRule({ ...draftRule, maxDiscountPercent: Number(text.replace(/[^0-9]/g, "")) || 0 })}
+          onChangeText={(text) => {
+            const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
+            setDraftRule({ ...draftRule, maxDiscountPercent: nextRate });
+            if (nextRate <= 0) {
+              setMerchantError("Campaign max discount must be above 0%.");
+            }
+          }}
         />
         <TextInput
           style={styles.input}
@@ -4068,7 +4087,13 @@ function MerchantScreen({
           placeholderTextColor="#8A8A8A"
           keyboardType="numeric"
           value={String(draftRule.dailyRedemptionCap)}
-          onChangeText={(text) => setDraftRule({ ...draftRule, dailyRedemptionCap: Number(text.replace(/[^0-9]/g, "")) || 0 })}
+          onChangeText={(text) => {
+            const nextCap = Number(text.replace(/[^0-9]/g, "")) || 0;
+            setDraftRule({ ...draftRule, dailyRedemptionCap: nextCap });
+            if (nextCap <= 0) {
+              setMerchantError("Daily redemption cap must be at least 1.");
+            }
+          }}
         />
         <TextInput
           style={styles.input}
@@ -4085,10 +4110,16 @@ function MerchantScreen({
             It will target {draftRule.audiencePreferences?.join(", ") || "nearby users"} when {draftRule.triggerConditions?.join(", ") || "your triggers"} match.
           </Text>
           <Text style={styles.caption}>Daily cap is {draftRule.dailyRedemptionCap} redemptions. Each accepted offer gets a short expiring coupon code.</Text>
+          {ruleGuardrailError && <Text style={styles.errorText}>{ruleGuardrailError}</Text>}
         </View>
         <TouchableOpacity
-          style={styles.primaryButton}
+          style={[styles.primaryButton, ruleGuardrailError && styles.buttonDisabled]}
+          disabled={Boolean(ruleGuardrailError)}
           onPress={async () => {
+            if (ruleGuardrailError) {
+              setMerchantError(ruleGuardrailError);
+              return;
+            }
             try {
               await onSaveRule(draftRule);
               setMerchantError(undefined);
