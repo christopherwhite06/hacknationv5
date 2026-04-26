@@ -349,6 +349,25 @@ const main = async () => {
       throw new Error(`Expected closed merchant offer rejection, got ${closedOfferResponse.status}: ${await closedOfferResponse.text()}`);
     }
 
+    const wrongCouponResponse = await fetch(`${baseUrl}/redemptions/issue`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId,
+        offerId: offer.id,
+        merchantId,
+        couponCode: "WRONG-CODE",
+        cashbackCents: offer.cashbackCents
+      })
+    });
+
+    if (wrongCouponResponse.status !== 409) {
+      throw new Error(`Expected mismatched coupon issue to be rejected, got ${wrongCouponResponse.status}: ${await wrongCouponResponse.text()}`);
+    }
+
     const token = await requestJson("/redemptions/issue", {
       method: "POST",
       body: JSON.stringify({

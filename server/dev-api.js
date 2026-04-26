@@ -773,6 +773,7 @@ const generatedOffer = (body) => {
   generatedOffers.set(offer.id, {
     merchantId: merchant.id,
     ruleId: rule.id,
+    couponCode: code,
     dailyRedemptionCap: Number(rule.dailyRedemptionCap || 0),
     generatedAt: new Date().toISOString()
   });
@@ -1070,6 +1071,10 @@ const server = http.createServer(async (req, res) => {
       const offerRecord = generatedOffers.get(body.offerId);
       if (!offerRecord || offerRecord.merchantId !== body.merchantId) {
         json(res, 404, { error: "Redemption issue requires a generated offer from this API instance." });
+        return;
+      }
+      if (body.couponCode !== offerRecord.couponCode) {
+        json(res, 409, { error: "Coupon code does not match the generated offer." });
         return;
       }
       const dailyRedemptionCap = Number(offerRecord.dailyRedemptionCap || 0);
