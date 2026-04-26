@@ -2431,7 +2431,7 @@ function DemoJourneyScreen({
       title: "01 Context sensing",
       status: liveOrDeviceSignals.length >= 2 ? "ready" : "config needed",
       body: context
-        ? `${liveOrDeviceSignals.length} live/device signals, ${demoSignalCount} labelled demo signal(s), ${configNeededSignalCount} config-needed source(s). ${context.compositeState || "Composite state pending."}`
+        ? `${liveOrDeviceSignals.length} live/device source(s), ${demoSignalCount} labelled demo source(s), ${configNeededSignalCount} config-needed source(s). ${context.compositeState || "Composite state pending."}`
         : "Waiting for GPS, weather, OSM merchant, event and demand evidence."
     },
     {
