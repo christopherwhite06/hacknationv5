@@ -1106,14 +1106,16 @@ const server = http.createServer(async (req, res) => {
       if (
         !rule.goal ||
         !Number.isFinite(Number(rule.maxDiscountPercent)) ||
+        Number(rule.maxDiscountPercent) <= 0 ||
         !Array.isArray(rule.eligibleProducts) ||
         !rule.eligibleProducts.length ||
         !Array.isArray(rule.validWindows) ||
         !rule.validWindows.length ||
         !Number.isFinite(Number(rule.dailyRedemptionCap)) ||
+        Number(rule.dailyRedemptionCap) <= 0 ||
         !Array.isArray(rule.forbiddenClaims)
       ) {
-        json(res, 400, { error: "Merchant rules require goal, maxDiscountPercent, eligibleProducts, validWindows, dailyRedemptionCap and forbiddenClaims." });
+        json(res, 400, { error: "Merchant rules require goal, positive maxDiscountPercent, eligibleProducts, validWindows, positive dailyRedemptionCap and forbiddenClaims." });
         return;
       }
       const savedRule = {

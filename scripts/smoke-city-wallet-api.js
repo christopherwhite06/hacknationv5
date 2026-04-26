@@ -115,6 +115,30 @@ const main = async () => {
       method: "POST",
       body: JSON.stringify({ manualDiscountPercent: 18 })
     });
+    const invalidRule = await fetch(`${baseUrl}/merchants/${merchantId}/rules`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        id: "rule-invalid-smoke",
+        merchantId,
+        goal: "fill_quiet_hours",
+        maxDiscountPercent: 0,
+        eligibleProducts: ["coffee"],
+        validWindows: ["lunch"],
+        dailyRedemptionCap: 0,
+        brandTone: "cozy",
+        forbiddenClaims: ["free"],
+        autoApproveWithinRules: true,
+        source: "merchant"
+      })
+    });
+
+    if (invalidRule.status !== 400) {
+      throw new Error(`Expected non-actionable merchant rule to be rejected, got ${invalidRule.status}: ${await invalidRule.text()}`);
+    }
 
     const offer = await requestJson("/offers/generate", {
       method: "POST",
