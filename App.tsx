@@ -3358,6 +3358,12 @@ function OfferScreen({
   const accent = palette[0] || "#E30613";
   const expiresAt = new Date(offer.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const primaryReason = offer.visibleReasons[0] || offer.generationEvidence.context[0] || "Live context matched merchant guardrails";
+  const dealSourceLabel = offer.generationEvidence.dealSource.startsWith("local://")
+    ? "Local Gemma evidence"
+    : `Public source: ${offer.generationEvidence.dealSource.replace(/^https?:\/\//, "").split("/")[0]}`;
+  const privacyLabel = offer.generationEvidence.privacy.toLowerCase().includes("abstract")
+    ? "Privacy: abstract intent only"
+    : "Privacy: local-only";
 
   return (
     <>
@@ -3375,6 +3381,14 @@ function OfferScreen({
         </View>
         <Text style={styles.offerBody}>{offer.body}</Text>
         <Text style={styles.offerBody}>Why now: {primaryReason}</Text>
+        <View style={styles.factGrid}>
+          <View style={styles.fact}>
+            <Text style={styles.factText} numberOfLines={1}>{dealSourceLabel}</Text>
+          </View>
+          <View style={styles.fact}>
+            <Text style={styles.factText} numberOfLines={1}>{privacyLabel}</Text>
+          </View>
+        </View>
         <Text style={styles.couponCode}>Code: {offer.couponCode}</Text>
 
         <View style={styles.row}>
