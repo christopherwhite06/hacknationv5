@@ -1349,6 +1349,13 @@ const server = http.createServer(async (req, res) => {
           name: "Local Gemma",
           status: "degraded",
           detail: "Device app calls the configured Ollama URL directly; the dev API does not claim the local model is running."
+        },
+        {
+          name: "QR proof secret",
+          status: process.env.CITY_WALLET_QR_PROOF_SECRET ? "connected" : "degraded",
+          detail: process.env.CITY_WALLET_QR_PROOF_SECRET
+            ? "QR payload HMAC proof uses the configured secret."
+            : "QR payload HMAC proof uses the local dev secret; configure CITY_WALLET_QR_PROOF_SECRET before production."
         }
       ]);
       return;

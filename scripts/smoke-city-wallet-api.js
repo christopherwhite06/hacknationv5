@@ -62,12 +62,16 @@ const main = async () => {
     const osmHealth = health.find((connector) => connector.name === "OpenStreetMap places");
     const hermesHealth = health.find((connector) => connector.name === "Hermes/Gemini agent");
     const gemmaHealth = health.find((connector) => connector.name === "Local Gemma");
+    const qrProofHealth = health.find((connector) => connector.name === "QR proof secret");
 
     if (weatherHealth?.status !== "degraded" || eventHealth?.status !== "degraded" || osmHealth?.status !== "degraded") {
       throw new Error(`Expected unprobed public adapters to be adapter-ready/degraded, got ${JSON.stringify({ weatherHealth, eventHealth, osmHealth })}.`);
     }
     if (hermesHealth?.status !== "degraded" || gemmaHealth?.status !== "degraded") {
       throw new Error(`Expected AI runtime health to be adapter/degraded until probed live, got ${JSON.stringify({ hermesHealth, gemmaHealth })}.`);
+    }
+    if (qrProofHealth?.status !== "degraded" || !qrProofHealth.detail.includes("local dev secret")) {
+      throw new Error(`Expected QR proof secret health to disclose local dev fallback, got ${JSON.stringify(qrProofHealth)}.`);
     }
     const stuttgartEvents = await requestJson("/events/nearby?lat=48.7758&lon=9.1829");
     if (stuttgartEvents.length !== 0) {
