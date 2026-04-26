@@ -77,6 +77,14 @@ const main = async () => {
     if (stuttgartEvents.length !== 0) {
       throw new Error(`Expected no Royal Holloway events for Stuttgart until a Stuttgart adapter is configured, got ${JSON.stringify(stuttgartEvents)}.`);
     }
+    const invalidWeatherResponse = await fetch(`${baseUrl}/weather/current?lat=not-a-number&lon=-0.56`, {
+      headers: {
+        Accept: "application/json"
+      }
+    });
+    if (invalidWeatherResponse.status !== 400) {
+      throw new Error(`Expected invalid weather coordinates to be rejected before external fetch, got ${invalidWeatherResponse.status}: ${await invalidWeatherResponse.text()}`);
+    }
     const accountEmail = `smoke-${Date.now()}@example.test`;
     const accountUsername = `smoke-account-${Date.now()}`;
     await requestJson("/accounts", {

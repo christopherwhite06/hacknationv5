@@ -922,9 +922,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && path === "/weather/current") {
-      const lat = url.searchParams.get("lat");
-      const lon = url.searchParams.get("lon");
-      if (!lat || !lon) {
+      const lat = Number(url.searchParams.get("lat"));
+      const lon = Number(url.searchParams.get("lon"));
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
         json(res, 400, { error: "lat and lon are required for real weather lookup." });
         return;
       }
