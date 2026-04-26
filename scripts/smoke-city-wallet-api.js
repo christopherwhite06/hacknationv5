@@ -74,10 +74,11 @@ const main = async () => {
       throw new Error(`Expected no Royal Holloway events for Stuttgart until a Stuttgart adapter is configured, got ${JSON.stringify(stuttgartEvents)}.`);
     }
     const accountEmail = `smoke-${Date.now()}@example.test`;
+    const accountUsername = `smoke-account-${Date.now()}`;
     await requestJson("/accounts", {
       method: "POST",
       body: JSON.stringify({
-        username: `smoke-account-${Date.now()}`,
+        username: accountUsername,
         email: accountEmail,
         password: "correct-horse",
         accountType: "user"
@@ -116,6 +117,23 @@ const main = async () => {
 
     if (caseDuplicateAccount.status !== 409) {
       throw new Error(`Expected case-insensitive duplicate account email to be rejected, got ${caseDuplicateAccount.status}: ${await caseDuplicateAccount.text()}`);
+    }
+    const duplicateUsernameAccount = await fetch(`${baseUrl}/accounts`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: accountUsername,
+        email: `smoke-duplicate-username-${Date.now()}@example.test`,
+        password: "correct-horse",
+        accountType: "user"
+      })
+    });
+
+    if (duplicateUsernameAccount.status !== 409) {
+      throw new Error(`Expected duplicate account username to be rejected, got ${duplicateUsernameAccount.status}: ${await duplicateUsernameAccount.text()}`);
     }
     const rejectedSession = await fetch(`${baseUrl}/sessions`, {
       method: "POST",
