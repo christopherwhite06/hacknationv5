@@ -94,7 +94,7 @@ Run the full validation suite before demo-critical changes:
 npm run smoke:full
 ```
 
-The full smoke command runs TypeScript validation, then starts `server/dev-api.js` on isolated local ports with clearly labelled demo Payone demand and demo merchant supply enabled. It validates connector health, including adapter-ready/degraded status for public adapters that are not probed by the health route, case-insensitive duplicate account email/username, trimmed username duplicates, and wrong-password rejection, merchant manual rate influence on generated offers, event-rate and merchant-rule guardrails, context-responsive offer theming, QR/token issue, coupon-code and cashback-amount match validation, full scanned-payload validation, replay rejection, idempotent decline analytics, city/source scenarios, and aggregate merchant analytics.
+The full smoke command runs TypeScript validation, then starts `server/dev-api.js` on isolated local ports with clearly labelled demo Payone demand and demo merchant supply enabled. It validates connector health, including adapter-ready/degraded status for public adapters that are not probed by the health route, case-insensitive duplicate account email/username, trimmed username duplicates, and wrong-password rejection, merchant manual rate influence on generated offers, event-rate and merchant-rule guardrails, context-responsive offer theming, QR/token issue, generated-offer expiry checks, coupon-code and cashback-amount match validation, full scanned-payload validation, replay rejection, idempotent decline analytics, city/source scenarios, and aggregate merchant analytics.
 
 For a faster city/data-source audit only, run:
 
@@ -126,7 +126,7 @@ For the full judge-day checklist, see `DEMO_RUNBOOK.md`.
 - **Interaction location**: the generated offer appears as a popup over Google Maps and can also be opened as a full wallet card.
 - **Addressing style**: the offer uses generated situational framing based on the live context.
 - **First 3 seconds**: merchant, distance, product, cashback, and expiry are visible in compact facts.
-- **Ending state**: accept creates a QR token, redemption confirms cashback, and dismiss updates analytics without breaking the wallet flow.
+- **Ending state**: accept creates a QR token only before offer expiry, redemption confirms cashback, and dismiss updates analytics without breaking the wallet flow.
 - **Closed loop**: the demo must show context detection, offer generation, display, accept or decline, simulated checkout, ledger update, and merchant analytics.
 
 ## Hackathon Submission Guidance
