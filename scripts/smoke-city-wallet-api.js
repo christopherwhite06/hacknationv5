@@ -420,6 +420,19 @@ const main = async () => {
       method: "POST",
       body: JSON.stringify({ merchantId, qrPayload: token.qrPayload })
     });
+    const replayValidationResponse = await fetch(`${baseUrl}/redemptions/${encodeURIComponent(token.id)}/validate`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ merchantId, qrPayload: token.qrPayload })
+    });
+
+    if (replayValidationResponse.status !== 409) {
+      throw new Error(`Expected repeat redemption validation to be rejected, got ${replayValidationResponse.status}: ${await replayValidationResponse.text()}`);
+    }
+
     await requestJson("/offers/decline", {
       method: "POST",
       body: JSON.stringify({ merchantId, offerId: offer.id })
@@ -432,6 +445,9 @@ const main = async () => {
     }
     if (analytics.accepts < 1 || analytics.redemptions < 1) {
       throw new Error(`Expected accept/redemption analytics, got ${JSON.stringify(analytics)}.`);
+    }
+    if (analytics.redemptions !== 1) {
+      throw new Error(`Expected replay validation not to double-count redemptions, got ${JSON.stringify(analytics)}.`);
     }
     if (analytics.declines !== 1) {
       throw new Error(`Expected one aggregate decline after dismiss smoke, got ${JSON.stringify(analytics)}.`);
