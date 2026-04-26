@@ -289,6 +289,7 @@ export interface RedemptionToken {
   id: string;
   offerId: string;
   merchantId: string;
+  ruleId?: string;
   userId: string;
   couponCode: string;
   cashbackCents?: number;

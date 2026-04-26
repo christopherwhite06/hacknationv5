@@ -82,7 +82,7 @@ const main = async () => {
               maxDiscountPercent: 20,
               eligibleProducts: ["coffee"],
               validWindows: ["lunch"],
-              dailyRedemptionCap: 5,
+              dailyRedemptionCap: 1,
               brandTone: "cozy",
               forbiddenClaims: ["free"],
               autoApproveWithinRules: true,
@@ -119,6 +119,25 @@ const main = async () => {
         cashbackCents: offer.cashbackCents
       })
     });
+
+    const overCapResponse = await fetch(`${baseUrl}/redemptions/issue`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId: `${userId}-over-cap`,
+        offerId: offer.id,
+        merchantId,
+        couponCode: offer.couponCode,
+        cashbackCents: offer.cashbackCents
+      })
+    });
+
+    if (overCapResponse.status !== 409) {
+      throw new Error(`Expected daily redemption cap rejection, got ${overCapResponse.status}: ${await overCapResponse.text()}`);
+    }
 
     const validated = await requestJson(`/redemptions/${encodeURIComponent(token.id)}/validate`, {
       method: "POST",

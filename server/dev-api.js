@@ -8,6 +8,7 @@ const royalHollowayEventsUrl = "https://www.royalholloway.ac.uk/about-us/events/
 const royalHollowayPoint = { latitude: 51.42565, longitude: -0.56306 };
 
 const merchantRules = new Map();
+const generatedOffers = new Map();
 
 const analytics = new Map();
 const redemptions = new Map();
@@ -75,6 +76,17 @@ const updateAnalytics = (merchantId, patch) => {
   const current = merchantAnalytics(merchantId);
   analytics.set(merchantId, { ...current, ...patch });
   return merchantAnalytics(merchantId);
+};
+
+const issuedTokensForRuleToday = (merchantId, ruleId) => {
+  const today = new Date().toISOString().slice(0, 10);
+  return [...redemptions.values()].filter(
+    (token) =>
+      token.merchantId === merchantId &&
+      token.ruleId === ruleId &&
+      token.issuedAt.slice(0, 10) === today &&
+      token.status !== "rejected"
+  ).length;
 };
 
 const cadenceMs = (cadence) => {
@@ -651,7 +663,7 @@ const generatedOffer = (body) => {
 
   updateAnalytics(merchant.id, { impressions: merchantAnalytics(merchant.id).impressions + 1 });
 
-  return {
+  const offer = {
     id: `offer-${merchant.id}-${Date.now()}`,
     merchantId: merchant.id,
     ruleId: rule.id,
@@ -696,6 +708,12 @@ const generatedOffer = (body) => {
       openingFact
     ]
   };
+  generatedOffers.set(offer.id, {
+    merchantId: merchant.id,
+    ruleId: rule.id,
+    dailyRedemptionCap: Number(rule.dailyRedemptionCap || 0)
+  });
+  return offer;
 };
 
 const server = http.createServer(async (req, res) => {
@@ -958,14 +976,29 @@ const server = http.createServer(async (req, res) => {
         json(res, 400, { error: "Redemption issue requires userId, offerId, merchantId and couponCode." });
         return;
       }
+      const offerRecord = generatedOffers.get(body.offerId);
+      if (!offerRecord || offerRecord.merchantId !== body.merchantId) {
+        json(res, 404, { error: "Redemption issue requires a generated offer from this API instance." });
+        return;
+      }
+      const dailyRedemptionCap = Number(offerRecord.dailyRedemptionCap || 0);
+      if (dailyRedemptionCap <= 0) {
+        json(res, 409, { error: "Merchant rule has no remaining redemption capacity for today." });
+        return;
+      }
+      if (issuedTokensForRuleToday(body.merchantId, offerRecord.ruleId) >= dailyRedemptionCap) {
+        json(res, 409, { error: "Merchant daily redemption cap has been reached for this campaign rule." });
+        return;
+      }
       const token = {
         id: `token-${Date.now()}`,
         offerId: body.offerId,
         merchantId: body.merchantId,
+        ruleId: offerRecord.ruleId,
         userId: body.userId,
         couponCode: body.couponCode,
         cashbackCents: Number(body.cashbackCents || 0),
-        qrPayload: JSON.stringify({ offerId: body.offerId, merchantId: body.merchantId, userId: body.userId, couponCode: body.couponCode }),
+        qrPayload: JSON.stringify({ offerId: body.offerId, merchantId: body.merchantId, ruleId: offerRecord.ruleId, userId: body.userId, couponCode: body.couponCode }),
         issuedAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 12 * 60 * 1000).toISOString(),
         status: "issued"
