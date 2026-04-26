@@ -3713,6 +3713,12 @@ function MerchantScreen({
   };
   const activeEventAdjustment = eventSettings.scheduledAdjustments.find((adjustment) => adjustment.status === "active");
   const offerEngineRate = activeEventAdjustment?.discountPercent ?? eventSettings.manualDiscountPercent;
+  const eventSourceConfigNeeded = eventScanResult?.sourceUrl.startsWith("not_configured://");
+  const eventSourceStatus = eventSourceConfigNeeded
+    ? "config needed"
+    : eventScanResult
+      ? "live adapter"
+      : "not scanned";
 
   useEffect(() => {
     setDraftRule(withBusinessDefaults(rule));
@@ -3899,8 +3905,20 @@ function MerchantScreen({
         {merchantError && <Text style={styles.errorText}>{merchantError}</Text>}
         {eventScanResult && (
           <View style={styles.rulePreview}>
-            <Text style={styles.ruleLine}>Recommended rate: {eventScanResult.recommendedDiscountPercent}%</Text>
-            <Text style={styles.caption}>Source: {eventScanResult.sourceUrl}</Text>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.listTextWrap}>
+                <Text style={styles.ruleLine}>Recommended rate: {eventScanResult.recommendedDiscountPercent}%</Text>
+                <Text style={styles.caption}>Source: {eventScanResult.sourceUrl}</Text>
+              </View>
+              <Text style={styles.statusBadge}>{eventSourceStatus}</Text>
+            </View>
+            {!eventScanResult.events.length && (
+              <Text style={styles.muted}>
+                {eventSourceConfigNeeded
+                  ? "No city event adapter is configured for this merchant location; Spark keeps the merchant rate instead of inventing events."
+                  : "No live events were returned by the configured adapter for the next 7 days."}
+              </Text>
+            )}
             {eventScanResult.rationale.map((reason) => (
               <Text key={reason} style={styles.bullet}>- {reason}</Text>
             ))}
