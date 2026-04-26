@@ -3900,7 +3900,11 @@ function MerchantScreen({
         <Metric label="Declines" value={analytics?.declines ?? 0} />
         <Metric label="Redemptions" value={analytics?.redemptions ?? 0} />
         <Metric label="Accept rate" value={`${Math.round((analytics?.acceptRate ?? 0) * 100)}%`} />
+        <Metric label="Checkout conversion" value={`${Math.round((analytics?.redemptionRate ?? 0) * 100)}%`} />
         <Metric label="Quiet-hour lift" value={`${analytics?.quietHourLiftPercent ?? 0}%`} />
+        <Text style={styles.caption}>
+          Lift basis: {analytics?.quietHourLiftBasis?.replaceAll("_", " ") || "not measured"}. Spark will not invent post-campaign lift without a Payone baseline.
+        </Text>
       </View>
 
       <View style={styles.card}>

@@ -306,7 +306,9 @@ export interface MerchantAnalytics {
   redemptions: number;
   cashbackIssuedCents: number;
   acceptRate: number;
+  redemptionRate: number;
   quietHourLiftPercent: number;
+  quietHourLiftBasis: "not_measured" | "payone_demo" | "payone_live";
 }
 
 export interface AiStackValidation {

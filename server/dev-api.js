@@ -56,15 +56,18 @@ const merchantAnalytics = (merchantId) => {
       declines: 0,
       redemptions: 0,
       cashbackIssuedCents: 0,
+      redemptionRate: 0,
       acceptRate: 0,
-      quietHourLiftPercent: 0
+      quietHourLiftPercent: 0,
+      quietHourLiftBasis: "not_measured"
     });
   }
 
   const current = analytics.get(merchantId);
   return {
     ...current,
-    acceptRate: current.impressions ? current.accepts / current.impressions : 0
+    acceptRate: current.impressions ? current.accepts / current.impressions : 0,
+    redemptionRate: current.accepts ? current.redemptions / current.accepts : 0
   };
 };
 
@@ -1007,8 +1010,7 @@ const server = http.createServer(async (req, res) => {
       const current = merchantAnalytics(token.merchantId);
       updateAnalytics(token.merchantId, {
         redemptions: current.redemptions + 1,
-        cashbackIssuedCents: current.cashbackIssuedCents + Number(token.cashbackCents || 0),
-        quietHourLiftPercent: 18
+        cashbackIssuedCents: current.cashbackIssuedCents + Number(token.cashbackCents || 0)
       });
       addLedgerEntry(token.userId, {
         type: "redeemed",

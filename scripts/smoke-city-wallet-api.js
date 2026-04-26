@@ -133,6 +133,12 @@ const main = async () => {
     if (analytics.accepts < 1 || analytics.redemptions < 1) {
       throw new Error(`Expected accept/redemption analytics, got ${JSON.stringify(analytics)}.`);
     }
+    if (analytics.redemptionRate !== 1) {
+      throw new Error(`Expected measured checkout conversion of 1, got ${analytics.redemptionRate}.`);
+    }
+    if (analytics.quietHourLiftBasis !== "not_measured" || analytics.quietHourLiftPercent !== 0) {
+      throw new Error(`Expected quiet-hour lift to remain unmeasured without post-campaign Payone baseline, got ${JSON.stringify(analytics)}.`);
+    }
 
     console.log(
       JSON.stringify(
@@ -145,7 +151,9 @@ const main = async () => {
           analytics: {
             accepts: analytics.accepts,
             redemptions: analytics.redemptions,
-            acceptRate: analytics.acceptRate
+            acceptRate: analytics.acceptRate,
+            redemptionRate: analytics.redemptionRate,
+            quietHourLiftBasis: analytics.quietHourLiftBasis
           }
         },
         null,
