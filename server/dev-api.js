@@ -818,7 +818,7 @@ const server = http.createServer(async (req, res) => {
         json(res, 409, { error: "An account already exists for this email." });
         return;
       }
-      if ([...accounts.values()].some((account) => account.username === body.username)) {
+      if ([...accounts.values()].some((account) => account.username.toLowerCase() === String(body.username).toLowerCase())) {
         json(res, 409, { error: "An account already exists for this username." });
         return;
       }
