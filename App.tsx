@@ -57,16 +57,22 @@ import {
   deleteKnowledgeGraph,
   declineOffer,
   exportKnowledgeGraph,
+  fetchBusinessEventIntelligence,
   fetchConnectorHealth,
   fetchLedger,
   fetchWalletUser,
   loginAccount,
+  saveBusinessEventIntelligence,
+  scanBusinessEvents,
   syncGoogleCalendar
 } from "./src/services/cityWalletApi";
 import {
   AccountProfile,
   AccountType,
   BrowserAgentMode,
+  BusinessEventIntelligenceSettings,
+  BusinessEventScanCadence,
+  BusinessEventScanResult,
   CalendarEvent,
   ConnectorHealth,
   ContextState,
@@ -290,6 +296,8 @@ export default function App() {
   const [offer, setOffer] = useState<GeneratedOffer | undefined>();
   const [token, setToken] = useState<RedemptionToken | undefined>();
   const [analytics, setAnalytics] = useState<MerchantAnalytics | undefined>();
+  const [eventIntelligence, setEventIntelligence] = useState<BusinessEventIntelligenceSettings | undefined>();
+  const [eventScanResult, setEventScanResult] = useState<BusinessEventScanResult | undefined>();
   const [agentStatus, setAgentStatus] = useState("Connecting to local Gemma and Hermes Agent...");
   const [context, setContext] = useState<ContextState | undefined>();
   const [merchant, setMerchant] = useState<Merchant | undefined>();
@@ -394,6 +402,14 @@ export default function App() {
       setLocalGraph(localGraph);
       setContext(liveContext);
       setMerchant(selectedMerchant);
+      if (selectedMerchant) {
+        fetchBusinessEventIntelligence(selectedMerchant.id)
+          .then(setEventIntelligence)
+          .catch(() => undefined);
+      } else {
+        setEventIntelligence(undefined);
+        setEventScanResult(undefined);
+      }
 
       const intent = await inferLocalIntent(liveContext, localGraph);
       const [walletLedger, health] = await Promise.all([
@@ -1498,10 +1514,21 @@ export default function App() {
           <MerchantScreen
             analytics={analytics}
             activeOffer={offer}
+            eventIntelligence={eventIntelligence}
+            eventScanResult={eventScanResult}
             merchant={merchant}
             onSaveRule={async (rule) => {
               const savedRule = await createMerchantRule(merchant.id, rule);
               setMerchant({ ...merchant, rules: [savedRule, ...merchant.rules.filter((item) => item.id !== savedRule.id)] });
+            }}
+            onSaveEventIntelligence={async (patch) => {
+              const saved = await saveBusinessEventIntelligence(merchant.id, patch);
+              setEventIntelligence(saved);
+            }}
+            onScanEvents={async () => {
+              const result = await scanBusinessEvents(merchant, merchant.rules[0]);
+              setEventScanResult(result);
+              setEventIntelligence(await fetchBusinessEventIntelligence(merchant.id));
             }}
           />
         )}
@@ -3173,6 +3200,12 @@ const businessTriggerOptions: Array<{ id: NonNullable<MerchantRule["triggerCondi
 ];
 
 const preferenceOptions = ["warm drinks", "quick lunch", "books", "gifts", "quiet seating", "fitness"];
+const eventScanCadenceOptions: Array<{ id: BusinessEventScanCadence; label: string }> = [
+  { id: "manual", label: "Manual" },
+  { id: "daily", label: "Daily" },
+  { id: "twice_daily", label: "Twice daily" },
+  { id: "weekly", label: "Weekly" }
+];
 
 const toggleListValue = <T extends string>(values: T[] | undefined, value: T) =>
   values?.includes(value) ? values.filter((item) => item !== value) : [...(values || []), value];
@@ -3196,13 +3229,27 @@ const merchantRuleDraftFor = (merchant: Merchant): MerchantRule => ({
 function MerchantScreen({
   analytics,
   activeOffer,
+  eventIntelligence,
+  eventScanResult,
   merchant,
-  onSaveRule
+  onSaveEventIntelligence,
+  onSaveRule,
+  onScanEvents
 }: {
   analytics?: MerchantAnalytics;
   activeOffer?: GeneratedOffer;
+  eventIntelligence?: BusinessEventIntelligenceSettings;
+  eventScanResult?: BusinessEventScanResult;
   merchant: Merchant;
+  onSaveEventIntelligence: (patch: {
+    mode?: BusinessEventIntelligenceSettings["mode"];
+    scanCadence?: BusinessEventScanCadence;
+    manualDiscountPercent?: number;
+    minAutoDiscountPercent?: number;
+    maxAutoDiscountPercent?: number;
+  }) => Promise<void>;
   onSaveRule: (rule: MerchantRule) => Promise<void>;
+  onScanEvents: () => Promise<void>;
 }) {
   const { styles } = useThemeKit();
   const rule = useMemo(() => merchant.rules[0] || merchantRuleDraftFor(merchant), [merchant]);
@@ -3213,7 +3260,18 @@ function MerchantScreen({
     audiencePreferences: value.audiencePreferences || ["warm drinks", "quick lunch"]
   });
   const [draftRule, setDraftRule] = useState<MerchantRule>(withBusinessDefaults(rule));
+  const [scanBusy, setScanBusy] = useState(false);
+  const [eventStatus, setEventStatus] = useState<string | undefined>();
   const [savedMessage, setSavedMessage] = useState<string | undefined>();
+  const eventSettings = eventIntelligence || {
+    merchantId: merchant.id,
+    mode: "manual" as const,
+    scanCadence: "daily" as const,
+    manualDiscountPercent: draftRule.maxDiscountPercent,
+    minAutoDiscountPercent: 5,
+    maxAutoDiscountPercent: draftRule.maxDiscountPercent,
+    scheduledAdjustments: []
+  };
 
   useEffect(() => {
     setDraftRule(withBusinessDefaults(rule));
@@ -3238,6 +3296,144 @@ function MerchantScreen({
         <Text style={styles.ruleLine}>Audience: {(rule.audiencePreferences || []).join(", ") || "All nearby users"}</Text>
         <Text style={styles.ruleLine}>Daily cap: {rule.dailyRedemptionCap}</Text>
         <Text style={styles.ruleLine}>Auto approval: {rule.autoApproveWithinRules ? "within rules" : "manual"}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Live Event Intelligence</Text>
+        <Text style={styles.caption}>
+          Spark scans live local events within the next 7 days. Auto mode schedules bounded discount changes from real event evidence.
+        </Text>
+        <View style={styles.settingRow}>
+          <View>
+            <Text style={styles.ruleLine}>Mode</Text>
+            <Text style={styles.caption}>{eventSettings.mode === "auto" ? "Spark schedules event-based rates" : "You approve/edit rates manually"}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.ruleChip, eventSettings.mode === "auto" && styles.ruleChipActive]}
+            onPress={async () => {
+              const nextMode = eventSettings.mode === "auto" ? "manual" : "auto";
+              await onSaveEventIntelligence({ mode: nextMode });
+              setEventStatus(nextMode === "auto" ? "Auto mode enabled. Run a scan to schedule event-based rates." : "Manual mode enabled.");
+            }}
+          >
+            <Text style={[styles.ruleChipText, eventSettings.mode === "auto" && styles.ruleChipTextActive]}>
+              {eventSettings.mode === "auto" ? "Auto on" : "Auto off"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.ruleLine}>Scan frequency</Text>
+        <View style={styles.businessChipRow}>
+          {eventScanCadenceOptions.map((option) => {
+            const active = eventSettings.scanCadence === option.id;
+            return (
+              <TouchableOpacity
+                key={option.id}
+                style={[styles.ruleChip, active && styles.ruleChipActive]}
+                onPress={async () => {
+                  await onSaveEventIntelligence({ scanCadence: option.id });
+                  setEventStatus(`Event scan cadence set to ${option.label}.`);
+                }}
+              >
+                <Text style={[styles.ruleChipText, active && styles.ruleChipTextActive]}>{option.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <View style={styles.eventRateGrid}>
+          <View style={styles.eventRateBox}>
+            <Text style={styles.caption}>Manual rate</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Manual %"
+              placeholderTextColor="#8A8A8A"
+              keyboardType="numeric"
+              value={String(eventSettings.manualDiscountPercent)}
+              onChangeText={(text) => {
+                const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
+                setDraftRule({ ...draftRule, maxDiscountPercent: nextRate });
+                void onSaveEventIntelligence({ manualDiscountPercent: nextRate });
+              }}
+            />
+          </View>
+          <View style={styles.eventRateBox}>
+            <Text style={styles.caption}>Auto bounds</Text>
+            <View style={styles.row}>
+              <TextInput
+                style={styles.inputFlex}
+                placeholder="Min %"
+                placeholderTextColor="#8A8A8A"
+                keyboardType="numeric"
+                value={String(eventSettings.minAutoDiscountPercent)}
+                onChangeText={(text) =>
+                  onSaveEventIntelligence({ minAutoDiscountPercent: Number(text.replace(/[^0-9]/g, "")) || 0 })
+                }
+              />
+              <TextInput
+                style={styles.inputFlex}
+                placeholder="Max %"
+                placeholderTextColor="#8A8A8A"
+                keyboardType="numeric"
+                value={String(eventSettings.maxAutoDiscountPercent)}
+                onChangeText={(text) =>
+                  onSaveEventIntelligence({ maxAutoDiscountPercent: Number(text.replace(/[^0-9]/g, "")) || 0 })
+                }
+              />
+            </View>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={[styles.primaryButton, scanBusy && styles.buttonDisabled]}
+          disabled={scanBusy}
+          onPress={async () => {
+            setScanBusy(true);
+            setEventStatus("Scanning live local events...");
+            try {
+              await onScanEvents();
+              setEventStatus("Live event scan complete.");
+            } catch (caught) {
+              setEventStatus(caught instanceof Error ? caught.message : "Event scan failed.");
+            } finally {
+              setScanBusy(false);
+            }
+          }}
+        >
+          <Text style={styles.primaryButtonText}>{scanBusy ? "Scanning..." : "Scan local events now"}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={async () => {
+            await onSaveEventIntelligence({ manualDiscountPercent: draftRule.maxDiscountPercent });
+            await onSaveRule({ ...draftRule, maxDiscountPercent: draftRule.maxDiscountPercent });
+            setSavedMessage(`Manual offer rate set to ${draftRule.maxDiscountPercent}%.`);
+          }}
+        >
+          <Text style={styles.secondaryButtonText}>Apply manual rate to campaign</Text>
+        </TouchableOpacity>
+        {eventStatus && <Text style={styles.successText}>{eventStatus}</Text>}
+        {eventScanResult && (
+          <View style={styles.rulePreview}>
+            <Text style={styles.ruleLine}>Recommended rate: {eventScanResult.recommendedDiscountPercent}%</Text>
+            <Text style={styles.caption}>Source: {eventScanResult.sourceUrl}</Text>
+            {eventScanResult.rationale.map((reason) => (
+              <Text key={reason} style={styles.bullet}>- {reason}</Text>
+            ))}
+            {eventScanResult.events.slice(0, 3).map((event) => (
+              <Text key={`${event.title}-${event.startsAt}`} style={styles.caption}>
+                {event.title} · {new Date(event.startsAt).toLocaleDateString()} · {event.expectedDemandImpact} impact
+              </Text>
+            ))}
+          </View>
+        )}
+        {eventSettings.scheduledAdjustments.length > 0 && (
+          <View style={styles.rulePreview}>
+            <Text style={styles.ruleLine}>Scheduled event-based rates</Text>
+            {eventSettings.scheduledAdjustments.slice(0, 3).map((adjustment) => (
+              <Text key={adjustment.id} style={styles.caption}>
+                {adjustment.discountPercent}% · {adjustment.status} · {adjustment.eventTitle || "local event"} until {new Date(adjustment.endsAt).toLocaleDateString()}
+              </Text>
+            ))}
+          </View>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -4172,6 +4368,17 @@ function createStyles(theme: AppTheme) {
     paddingHorizontal: 14,
     paddingVertical: 12
   },
+  inputFlex: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderColor: theme.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    color: theme.text,
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 12
+  },
   promptInput: {
     backgroundColor: "rgba(255,255,255,0.74)",
     borderColor: theme.primarySoft,
@@ -4921,6 +5128,17 @@ function createStyles(theme: AppTheme) {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8
+  },
+  eventRateGrid: {
+    gap: 10
+  },
+  eventRateBox: {
+    backgroundColor: theme.surfaceAlt,
+    borderColor: theme.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12
   },
   ruleChip: {
     borderColor: theme.border,

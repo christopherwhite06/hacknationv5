@@ -1032,6 +1032,76 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "GET" && path.startsWith("/merchants/") && path.endsWith("/event-intelligence")) {
+      const merchantId = decodeURIComponent(path.split("/")[2]);
+      json(res, 200, eventSettingsFor(merchantId));
+      return;
+    }
+
+    if (req.method === "POST" && path.startsWith("/merchants/") && path.endsWith("/event-intelligence")) {
+      const merchantId = decodeURIComponent(path.split("/")[2]);
+      const body = await readJsonBody(req);
+      const current = eventSettingsFor(merchantId);
+      const scanCadence = ["manual", "daily", "twice_daily", "weekly"].includes(body.scanCadence)
+        ? body.scanCadence
+        : current.scanCadence;
+      const mode = body.mode === "auto" || body.mode === "manual" ? body.mode : current.mode;
+      const next = {
+        ...current,
+        mode,
+        scanCadence,
+        manualDiscountPercent: Number.isFinite(Number(body.manualDiscountPercent))
+          ? Math.max(0, Math.min(50, Number(body.manualDiscountPercent)))
+          : current.manualDiscountPercent,
+        minAutoDiscountPercent: Number.isFinite(Number(body.minAutoDiscountPercent))
+          ? Math.max(0, Math.min(50, Number(body.minAutoDiscountPercent)))
+          : current.minAutoDiscountPercent,
+        maxAutoDiscountPercent: Number.isFinite(Number(body.maxAutoDiscountPercent))
+          ? Math.max(0, Math.min(50, Number(body.maxAutoDiscountPercent)))
+          : current.maxAutoDiscountPercent,
+        nextScanAt: nextScanAt(scanCadence)
+      };
+
+      if (next.minAutoDiscountPercent > next.maxAutoDiscountPercent) {
+        json(res, 400, { error: "minAutoDiscountPercent cannot be greater than maxAutoDiscountPercent." });
+        return;
+      }
+
+      eventIntelligenceSettings.set(merchantId, next);
+      json(res, 200, eventSettingsFor(merchantId));
+      return;
+    }
+
+    if (req.method === "POST" && path.startsWith("/merchants/") && path.endsWith("/event-intelligence/scan")) {
+      const merchantId = decodeURIComponent(path.split("/")[2]);
+      const body = await readJsonBody(req);
+      const settings = eventSettingsFor(merchantId);
+      const point = body.merchant?.location || royalHollowayPoint;
+      const events = await royalHollowayEvents(point);
+      const plan = buildEventDiscountPlan(merchantId, settings, events);
+      const scannedAt = new Date().toISOString();
+      const next = {
+        ...settings,
+        lastScanAt: scannedAt,
+        nextScanAt: nextScanAt(settings.scanCadence, Date.now()),
+        scheduledAdjustments: settings.mode === "auto"
+          ? [...plan.scheduledAdjustments, ...(settings.scheduledAdjustments || []).filter((adjustment) => Date.parse(adjustment.endsAt) > Date.now())].slice(0, 8)
+          : settings.scheduledAdjustments || []
+      };
+      eventIntelligenceSettings.set(merchantId, next);
+      json(res, 200, {
+        merchantId,
+        scannedAt,
+        sourceUrl: royalHollowayEventsUrl,
+        events,
+        recommendedDiscountPercent: plan.recommendedDiscountPercent,
+        decisionSource: "live_event_policy",
+        rationale: plan.rationale,
+        scheduledAdjustments: settings.mode === "auto" ? next.scheduledAdjustments : plan.scheduledAdjustments
+      });
+      return;
+    }
+
     if (req.method === "GET" && path === "/connectors/health") {
       json(res, 200, [
         { name: "Open-Meteo weather", status: "connected", detail: "Live weather adapter is reachable." },
