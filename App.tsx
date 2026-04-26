@@ -26,7 +26,7 @@ import QRCode from "react-native-qrcode-svg";
 import Svg, { Line } from "react-native-svg";
 import { WebView } from "react-native-webview";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { cityWalletConfig } from "./src/config/cityWalletConfig";
+import { cityWalletConfig, cityWalletConfigs } from "./src/config/cityWalletConfig";
 import { aiStackValidation, discoverDealInsight } from "./src/services/aiStack";
 import { learnBrowserSkillFromDeal, loadRelevantBrowserSkills } from "./src/services/browserSkills";
 import { buildContextState } from "./src/services/contextEngine";
@@ -91,7 +91,7 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
-type Screen = "map" | "graph" | "routine" | "offer" | "qr" | "wallet" | "profile" | "merchant";
+type Screen = "map" | "demo" | "graph" | "routine" | "offer" | "qr" | "wallet" | "profile" | "merchant";
 type ThemeMode = "light" | "dark";
 type AuthMode = "login" | "create";
 type CurrencyCode = "EUR" | "USD" | "GBP";
@@ -159,12 +159,14 @@ const getStartupLocationPoint = async (): Promise<{ point: GeoPoint; source: Loc
 
 const userNavItems: Array<{ id: Screen; label: string }> = [
   { id: "map", label: "Map" },
+  { id: "demo", label: "Demo" },
   { id: "offer", label: "Offer" },
   { id: "wallet", label: "Savings" }
 ];
 
 const businessNavItems: Array<{ id: Screen; label: string }> = [
   { id: "merchant", label: "Business" },
+  { id: "demo", label: "Demo" },
   { id: "wallet", label: "Savings" },
   { id: "map", label: "Map" }
 ];
@@ -891,7 +893,7 @@ export default function App() {
   }, [context, isAtHome, merchant, offer]);
 
   useEffect(() => {
-    const businessAllowedScreens: Screen[] = ["merchant", "wallet", "map", "profile", "graph", "routine", "offer", "qr"];
+    const businessAllowedScreens: Screen[] = ["merchant", "demo", "wallet", "map", "profile", "graph", "routine", "offer", "qr"];
 
     if (account?.accountType === "business" && !businessAllowedScreens.includes(screen)) {
       setScreen("merchant");

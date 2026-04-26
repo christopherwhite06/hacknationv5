@@ -162,6 +162,40 @@ export const buildContextState = async (
         events[0] ? `Live local event signal: ${events[0].title}` : "No live local events found near the active area",
         `${time.minutesAvailable} minutes available in the ${time.window} window`
       ],
+      sourceEvidence: [
+        {
+          category: "weather",
+          label: `${Math.round(weather.temperatureC)}C ${weather.condition}`,
+          source: weather.source,
+          status: "live"
+        },
+        {
+          category: "location",
+          label: `${location.userPosition.latitude.toFixed(5)}, ${location.userPosition.longitude.toFixed(5)}`,
+          source: cityWalletConfig.signalSources.location,
+          status: "device"
+        },
+        {
+          category: "time",
+          label: `${time.dayOfWeek} ${time.window}`,
+          source: cityWalletConfig.signalSources.time,
+          status: "device"
+        },
+        {
+          category: "event",
+          label: events[0]?.title || "No live event in range",
+          source: cityWalletConfig.signalSources.event,
+          status: events.length ? "live" : "not_configured"
+        },
+        {
+          category: "demand",
+          label: topDemand
+            ? `${topDemand.currentTransactionsPerHour}/${topDemand.baselineTransactionsPerHour} tx/hour`
+            : "No transaction-density signal returned",
+          source: cityWalletConfig.signalSources.demand,
+          status: topDemand?.source === "payone_demo" ? "demo" : topDemand ? "live" : "not_configured"
+        }
+      ],
       candidateMerchantIds: nearbyMerchants.map((merchant) => merchant.id),
       rankedMerchantIds
     }

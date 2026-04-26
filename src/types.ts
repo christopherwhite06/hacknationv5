@@ -183,6 +183,12 @@ export interface ContextState {
   signals: ContextSignal[];
   compositeState: string;
   visibleReasons: string[];
+  sourceEvidence: Array<{
+    category: SignalCategory;
+    label: string;
+    source: string;
+    status: "live" | "device" | "demo" | "not_configured";
+  }>;
   candidateMerchantIds: string[];
   rankedMerchantIds: string[];
 }
