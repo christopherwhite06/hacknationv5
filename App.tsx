@@ -1380,6 +1380,7 @@ export default function App() {
           <MapScreen
             agentStatus={agentStatus}
             contextReasons={context?.visibleReasons || []}
+            contextSourceEvidence={context?.sourceEvidence || []}
             compositeState={context?.compositeState || "Loading city context"}
             intent={localIntent?.abstractSignal || "Waiting for local Gemma intent"}
             manualPrompt={manualPrompt}
@@ -1562,6 +1563,7 @@ export default function App() {
 function MapScreen({
   agentStatus,
   contextReasons,
+  contextSourceEvidence,
   compositeState,
   intent,
   manualPrompt,
@@ -1593,6 +1595,7 @@ function MapScreen({
 }: {
   agentStatus: string;
   contextReasons: string[];
+  contextSourceEvidence: ContextState["sourceEvidence"];
   compositeState: string;
   intent: string;
   manualPrompt: string;
@@ -1793,9 +1796,59 @@ function MapScreen({
         {contextReasons.slice(0, 2).map((reason) => (
           <Text key={reason} style={styles.bullet}>- {reason}</Text>
         ))}
+        {contextSourceEvidence.length > 0 && (
+          <View style={styles.rulePreview}>
+            <Text style={styles.ruleLine}>Source evidence</Text>
+            {contextSourceEvidence.map((evidence) => (
+              <Text key={`${evidence.category}-${evidence.source}`} style={styles.caption}>
+                {evidence.category}: {evidence.label} · {evidence.status.replaceAll("_", " ")}
+              </Text>
+            ))}
+          </View>
+        )}
         <Text style={styles.caption}>{agentStatus}</Text>
         {simulatedTravelExpanded && (
           <View style={styles.inlineControls}>
+            <Text style={styles.ruleLine}>Scenario quick starts</Text>
+            <Text style={styles.caption}>
+              Current config: {cityWalletConfig.city}. Egham/Stuttgart buttons move the test user with labelled simulation; GPS returns to the device location flow.
+            </Text>
+            <View style={styles.businessChipRow}>
+              {(["egham", "stuttgart"] as const).map((scenario) => {
+                const scenarioConfig = cityWalletConfigs[scenario];
+                const defaultPoint = scenarioConfig.defaultPoint;
+
+                return (
+                  <TouchableOpacity
+                    key={scenario}
+                    style={styles.ruleChip}
+                    disabled={!defaultPoint}
+                    onPress={() => {
+                      if (!defaultPoint) {
+                        return;
+                      }
+                      onToggleSimulatedTravel(true);
+                      onSimulatedTravelPoint({
+                        latitude: defaultPoint.latitude,
+                        longitude: defaultPoint.longitude
+                      });
+                    }}
+                  >
+                    <Text style={styles.ruleChipText}>
+                      {scenarioConfig.defaultPoint?.label || scenarioConfig.city}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={[styles.ruleChip, locationSource === "gps" && styles.ruleChipActive]}
+                onPress={() => onToggleSimulatedTravel(false)}
+              >
+                <Text style={[styles.ruleChipText, locationSource === "gps" && styles.ruleChipTextActive]}>
+                  Current GPS
+                </Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.authToggleRow}>
               <TouchableOpacity
                 style={[styles.authToggle, simulatedTravelEnabled && styles.authToggleActive]}
