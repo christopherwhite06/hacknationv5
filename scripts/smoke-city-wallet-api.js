@@ -209,6 +209,27 @@ const main = async () => {
     if (invalidRuleWindow.status !== 400) {
       throw new Error(`Expected invalid merchant rule window to be rejected, got ${invalidRuleWindow.status}: ${await invalidRuleWindow.text()}`);
     }
+    const encodedMerchantId = `smoke merchant/${Date.now()}`;
+    const encodedRule = await requestJson(`/merchants/${encodeURIComponent(encodedMerchantId)}/rules`, {
+      method: "POST",
+      body: JSON.stringify({
+        id: "rule-encoded-merchant-smoke",
+        merchantId: encodedMerchantId,
+        goal: "fill_quiet_hours",
+        maxDiscountPercent: 12,
+        eligibleProducts: ["tea"],
+        validWindows: ["afternoon"],
+        dailyRedemptionCap: 2,
+        brandTone: "cozy",
+        forbiddenClaims: ["free"],
+        autoApproveWithinRules: true,
+        source: "merchant"
+      })
+    });
+    const encodedAnalytics = await requestJson(`/merchants/${encodeURIComponent(encodedMerchantId)}/analytics`);
+    if (encodedRule.merchantId !== encodedMerchantId || encodedAnalytics.merchantId !== encodedMerchantId) {
+      throw new Error(`Expected encoded merchant route IDs to round-trip decoded, got ${JSON.stringify({ encodedRule, encodedAnalytics })}.`);
+    }
 
     const offer = await requestJson("/offers/generate", {
       method: "POST",

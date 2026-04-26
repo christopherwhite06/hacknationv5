@@ -1149,12 +1149,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && path.startsWith("/merchants/") && path.endsWith("/analytics")) {
-      json(res, 200, merchantAnalytics(path.split("/")[2]));
+      json(res, 200, merchantAnalytics(decodeURIComponent(path.split("/")[2])));
       return;
     }
 
     if (req.method === "POST" && path.startsWith("/merchants/") && path.endsWith("/rules")) {
-      const merchantId = path.split("/")[2];
+      const merchantId = decodeURIComponent(path.split("/")[2]);
       const rule = await readJsonBody(req);
       if (
         !merchantRuleGoals.has(rule.goal) ||
