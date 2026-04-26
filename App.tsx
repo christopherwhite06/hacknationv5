@@ -2392,6 +2392,8 @@ function DemoJourneyScreen({
     .filter((connector) => /demo|payone/i.test(connector.name) || /demo/i.test(connector.detail))
     .map((connector) => `${connector.name}: ${connector.detail}`);
   const liveOrDeviceSignals = context?.sourceEvidence.filter((evidence) => evidence.status === "live" || evidence.status === "device") || [];
+  const demoSignalCount = context?.sourceEvidence.filter((evidence) => evidence.status === "demo").length || 0;
+  const configNeededSignalCount = context?.sourceEvidence.filter((evidence) => evidence.status === "not_configured").length || 0;
   const sourceStatusSummary = (["live", "device", "demo", "not_configured"] as ContextState["sourceEvidence"][number]["status"][])
     .map((status) => ({
       status,
@@ -2407,7 +2409,7 @@ function DemoJourneyScreen({
       title: "01 Context sensing",
       status: liveOrDeviceSignals.length >= 2 ? "ready" : "config needed",
       body: context
-        ? `${liveOrDeviceSignals.length} live/device signals plus ${context.sourceEvidence.filter((evidence) => evidence.status === "demo").length} labelled demo signal(s). ${context.compositeState || "Composite state pending."}`
+        ? `${liveOrDeviceSignals.length} live/device signals, ${demoSignalCount} labelled demo signal(s), ${configNeededSignalCount} config-needed source(s). ${context.compositeState || "Composite state pending."}`
         : "Waiting for GPS, weather, OSM merchant, event and demand evidence."
     },
     {
