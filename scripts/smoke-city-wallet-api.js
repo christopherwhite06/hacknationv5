@@ -420,6 +420,25 @@ const main = async () => {
       throw new Error(`Expected mismatched coupon issue to be rejected, got ${wrongCouponResponse.status}: ${await wrongCouponResponse.text()}`);
     }
 
+    const wrongCashbackResponse = await fetch(`${baseUrl}/redemptions/issue`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId,
+        offerId: offer.id,
+        merchantId,
+        couponCode: offer.couponCode,
+        cashbackCents: offer.cashbackCents + 1
+      })
+    });
+
+    if (wrongCashbackResponse.status !== 409) {
+      throw new Error(`Expected mismatched cashback issue to be rejected, got ${wrongCashbackResponse.status}: ${await wrongCashbackResponse.text()}`);
+    }
+
     const token = await requestJson("/redemptions/issue", {
       method: "POST",
       body: JSON.stringify({
