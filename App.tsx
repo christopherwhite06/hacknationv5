@@ -922,18 +922,23 @@ export default function App() {
       return;
     }
 
-    const issuedToken = await issueRedemptionToken(offer, ownerId);
-    setToken(issuedToken);
-    setAnalytics(await loadMerchantAnalytics(offer.merchantId));
-    const walletLedger = await fetchLedger(issuedToken.userId);
-    setLedger(walletLedger);
-    await saveOwnerLocalData(issuedToken.userId, { ledger: walletLedger });
-    if (!graphPaused) {
-      const graph = recordOfferOutcomeLocally(localGraph || (await loadLocalKnowledgeGraph(ownerId)), offer.id, "accepted");
-      await saveLocalKnowledgeGraph(graph, ownerId);
-      setLocalGraph(graph);
+    try {
+      setError(undefined);
+      const issuedToken = await issueRedemptionToken(offer, ownerId);
+      setToken(issuedToken);
+      setAnalytics(await loadMerchantAnalytics(offer.merchantId));
+      const walletLedger = await fetchLedger(issuedToken.userId);
+      setLedger(walletLedger);
+      await saveOwnerLocalData(issuedToken.userId, { ledger: walletLedger });
+      if (!graphPaused) {
+        const graph = recordOfferOutcomeLocally(localGraph || (await loadLocalKnowledgeGraph(ownerId)), offer.id, "accepted");
+        await saveLocalKnowledgeGraph(graph, ownerId);
+        setLocalGraph(graph);
+      }
+      setScreen("qr");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Spark could not issue the checkout token.");
     }
-    setScreen("qr");
   };
 
   const redeemOffer = async () => {
@@ -941,16 +946,21 @@ export default function App() {
       return;
     }
 
-    const validatedToken = await validateRedemptionToken(token, merchant.id);
-    setToken(validatedToken);
-    setAnalytics(await loadMerchantAnalytics(merchant.id));
-    const walletLedger = await fetchLedger(validatedToken.userId);
-    setLedger(walletLedger);
-    await saveOwnerLocalData(validatedToken.userId, { ledger: walletLedger });
-    if (!graphPaused) {
-      const graph = recordOfferOutcomeLocally(localGraph || (await loadLocalKnowledgeGraph(ownerId)), token.offerId, "redeemed");
-      await saveLocalKnowledgeGraph(graph, ownerId);
-      setLocalGraph(graph);
+    try {
+      setError(undefined);
+      const validatedToken = await validateRedemptionToken(token, merchant.id);
+      setToken(validatedToken);
+      setAnalytics(await loadMerchantAnalytics(merchant.id));
+      const walletLedger = await fetchLedger(validatedToken.userId);
+      setLedger(walletLedger);
+      await saveOwnerLocalData(validatedToken.userId, { ledger: walletLedger });
+      if (!graphPaused) {
+        const graph = recordOfferOutcomeLocally(localGraph || (await loadLocalKnowledgeGraph(ownerId)), token.offerId, "redeemed");
+        await saveLocalKnowledgeGraph(graph, ownerId);
+        setLocalGraph(graph);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Merchant checkout validation failed.");
     }
   };
 
@@ -959,14 +969,19 @@ export default function App() {
       return;
     }
 
-    setAnalytics(await declineOffer(offer.id, merchant.id));
-    if (!graphPaused) {
-      const graph = recordOfferOutcomeLocally(localGraph || (await loadLocalKnowledgeGraph(ownerId)), offer.id, "dismissed");
-      await saveLocalKnowledgeGraph(graph, ownerId);
-      setLocalGraph(graph);
+    try {
+      setError(undefined);
+      setAnalytics(await declineOffer(offer.id, merchant.id));
+      if (!graphPaused) {
+        const graph = recordOfferOutcomeLocally(localGraph || (await loadLocalKnowledgeGraph(ownerId)), offer.id, "dismissed");
+        await saveLocalKnowledgeGraph(graph, ownerId);
+        setLocalGraph(graph);
+      }
+      setOffer(undefined);
+      setScreen("map");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Spark could not dismiss the offer.");
     }
-    setOffer(undefined);
-    setScreen("map");
   };
 
   const walletBalance = walletUser ? formatMoney(walletUser.walletBalanceCents, currency) : "--";
