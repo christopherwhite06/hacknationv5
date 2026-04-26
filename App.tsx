@@ -4207,6 +4207,27 @@ function KnowledgeGraphScreen({
     });
     return counts;
   }, [graph.nodes]);
+  const clusterRouteSummary = useMemo(() => {
+    const nodeCluster = new Map(graph.nodes.map((node) => [node.id, graphClusterForNode(node)]));
+    const routeCounts = new Map<string, { from: GraphClusterId; to: GraphClusterId; count: number }>();
+
+    graph.edges.forEach((edge) => {
+      const from = nodeCluster.get(edge.from);
+      const to = nodeCluster.get(edge.to);
+
+      if (!from || !to) {
+        return;
+      }
+
+      const key = `${from}:${to}`;
+      const current = routeCounts.get(key);
+      routeCounts.set(key, { from, to, count: (current?.count || 0) + 1 });
+    });
+
+    return [...routeCounts.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+  }, [graph.edges, graph.nodes]);
   const offerOutcomeSummary = useMemo(() => {
     const summary = { accepted: 0, dismissed: 0, redeemed: 0 };
     graph.nodes.forEach((node) => {
@@ -4336,6 +4357,22 @@ function KnowledgeGraphScreen({
         <Text style={styles.muted}>
           Merchant analytics stay aggregate; individual outcome nodes remain on this device unless the user exports locally.
         </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Cluster Route Summary</Text>
+        <Text style={styles.caption}>
+          Spark traverses local graph clusters first, then sends only the abstract intent to cloud deal discovery when allowed.
+        </Text>
+        {clusterRouteSummary.length ? (
+          clusterRouteSummary.map((route) => (
+            <Text key={`${route.from}-${route.to}`} style={styles.bullet}>
+              - {graphClusterMeta[route.from].label} to {graphClusterMeta[route.to].label}: {route.count} local edge{route.count === 1 ? "" : "s"}
+            </Text>
+          ))
+        ) : (
+          <Text style={styles.muted}>No local routes yet. Live context, calendar sync, prompts and offer outcomes will build them on this device.</Text>
+        )}
       </View>
 
       <View style={styles.graphCanvas}>
