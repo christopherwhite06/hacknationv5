@@ -69,6 +69,7 @@ Required Hermes endpoint:
 ```bash
 npm install
 npm run typecheck
+npm run smoke:api
 npm run web
 ```
 
@@ -86,6 +87,18 @@ npm run api
 npm run emulator
 npm run android:phone
 ```
+
+## Repeatable Smoke Checks
+
+Run the local API smoke test before demo-critical changes:
+
+```bash
+npm run smoke:api
+```
+
+The smoke test starts `server/dev-api.js` on an isolated local port with clearly labelled demo Payone demand and demo merchant supply enabled. It validates connector health, merchant manual rate influence on generated offers, context-responsive offer theming, QR/token issue and validation, and aggregate merchant analytics.
+
+For emulator inspection, use the `Demo` tab as the judge-facing checklist, then test Egham/Stuttgart/current GPS from `Map` -> `Simulate`.
 
 ## Demo Flow
 
