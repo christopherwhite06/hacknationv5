@@ -20,11 +20,23 @@ const demoDemandEnabled = process.env.CITY_WALLET_DEMO_DEMAND === "enabled";
 const googlePlacesApiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || localEnvValue("GOOGLE_MAPS_API_KEY") || localEnvValue("EXPO_PUBLIC_GOOGLE_MAPS_API_KEY") || "";
 const royalHollowayEventsUrl = "https://www.royalholloway.ac.uk/about-us/events/";
 const royalHollowayPoint = { latitude: 51.42565, longitude: -0.56306 };
+const configuredLocalGemmaUrl = process.env.EXPO_PUBLIC_LOCAL_GEMMA_URL || localEnvValue("EXPO_PUBLIC_LOCAL_GEMMA_URL") || "http://127.0.0.1:11434";
+const localGemmaModel = process.env.EXPO_PUBLIC_LOCAL_GEMMA_MODEL || localEnvValue("EXPO_PUBLIC_LOCAL_GEMMA_MODEL") || "gemma4:e4b";
+const geminiApiKeyForHealth = process.env.EXPO_PUBLIC_GEMINI_API_KEY || localEnvValue("EXPO_PUBLIC_GEMINI_API_KEY") || "";
 const geminiRuntimeModelFor = (requestedModel) => ({
   "gemini-3.1-pro-preview": process.env.GEMINI_31_PRO_RUNTIME_MODEL || ["gemini", "2.5", "pro"].join("-"),
   "gemini-3.0-flash-preview": process.env.GEMINI_30_FLASH_RUNTIME_MODEL || ["gemini", "2.5", "flash"].join("-"),
   "gemini-3.1-flash-lite-preview": process.env.GEMINI_31_FLASH_LITE_RUNTIME_MODEL || ["gemini", "2.0", "flash"].join("-")
 }[requestedModel] || requestedModel);
+const hostReachableUrl = (url) => url.replace("://10.0.2.2", "://127.0.0.1");
+const probe = async (name, run) => {
+  try {
+    const detail = await run();
+    return { ok: true, detail };
+  } catch (error) {
+    return { ok: false, detail: `${name} check failed: ${error instanceof Error ? error.message : String(error)}` };
+  }
+};
 
 const merchantRules = new Map();
 const generatedOffers = new Map();
@@ -492,6 +504,66 @@ const googleDemandSignalForPlace = (merchantId, place = {}) => {
 const googlePlacesNearby = async (lat, lon) => {
   if (!googlePlacesApiKey) {
     return [];
+  }
+
+  const newPlacesResponse = await fetch("https://places.googleapis.com/v1/places:searchNearby", {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": googlePlacesApiKey,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.location,places.formattedAddress,places.currentOpeningHours,places.rating,places.userRatingCount,places.types"
+    },
+    body: JSON.stringify({
+      includedTypes: ["cafe", "restaurant", "bakery", "book_store"],
+      maxResultCount: 12,
+      locationRestriction: {
+        circle: {
+          center: { latitude: Number(lat), longitude: Number(lon) },
+          radius: 900
+        }
+      }
+    })
+  });
+  if (newPlacesResponse.ok) {
+    const payload = await newPlacesResponse.json();
+    return (payload.places || [])
+      .filter((place) => place.id && place.location && place.displayName?.text)
+      .slice(0, 12)
+      .map((place) => {
+        const id = `google-${place.id}`;
+        const legacyShape = {
+          place_id: place.id,
+          name: place.displayName.text,
+          types: place.types || [],
+          rating: place.rating,
+          user_ratings_total: place.userRatingCount,
+          opening_hours: typeof place.currentOpeningHours?.openNow === "boolean"
+            ? { open_now: place.currentOpeningHours.openNow }
+            : undefined
+        };
+        googlePlaceDemandSignals.set(id, googleDemandSignalForPlace(id, legacyShape));
+        return {
+          id,
+          name: place.displayName.text,
+          category: googlePlaceCategory(legacyShape),
+          location: {
+            latitude: Number(place.location.latitude),
+            longitude: Number(place.location.longitude)
+          },
+          address: place.formattedAddress || "Google Places nearby result",
+          openingHours: place.currentOpeningHours?.weekdayDescriptions?.join("; "),
+          openStatus: googleOpenStatus(legacyShape),
+          currentInventorySignals: [
+            "Google Places live nearby result",
+            place.rating ? `rating ${place.rating}` : "",
+            place.userRatingCount ? `${place.userRatingCount} public ratings` : "",
+            typeof place.currentOpeningHours?.openNow === "boolean" ? `open now: ${place.currentOpeningHours.openNow ? "yes" : "no"}` : ""
+          ].filter(Boolean),
+          productHints: googleProductHints(legacyShape),
+          rules: []
+        };
+      });
   }
 
   const params = new URLSearchParams({
@@ -1596,11 +1668,56 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && path === "/connectors/health") {
+      const [weatherHealth, placesHealth, eventsHealth, osmHealth, hermesHealth, gemmaHealth] = await Promise.all([
+        probe("Open-Meteo", async () => {
+          const weather = await weatherFromOpenMeteo(royalHollowayPoint.latitude, royalHollowayPoint.longitude);
+          return `Live weather reachable for ${weather.city}: ${weather.condition}, ${Math.round(weather.temperatureC)}C.`;
+        }),
+        probe("Google Places", async () => {
+          if (!googlePlacesApiKey) {
+            throw new Error("Google Places API key is not configured.");
+          }
+          const places = await googlePlacesNearby(royalHollowayPoint.latitude, royalHollowayPoint.longitude);
+          return `Google Places reachable; ${places.length} nearby public place records returned.`;
+        }),
+        probe("Royal Holloway events", async () => {
+          const events = await royalHollowayEvents(royalHollowayPoint);
+          return `Event source reachable; ${events.length} upcoming public events returned.`;
+        }),
+        probe("OpenStreetMap", async () => {
+          const merchants = await nearbyMerchantsFromOsm(royalHollowayPoint.latitude, royalHollowayPoint.longitude, false);
+          return `OpenStreetMap/Overpass reachable; ${merchants.length} nearby businesses returned.`;
+        }),
+        probe("Hermes/Gemini", async () => {
+          if (!geminiApiKeyForHealth) {
+            throw new Error("Gemini API key is not configured.");
+          }
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(geminiApiKeyForHealth)}`);
+          if (!response.ok) {
+            throw new Error(`Gemini models ${response.status}`);
+          }
+          return "Gemini API reachable and Hermes gateway route is available.";
+        }),
+        probe("Local Gemma", async () => {
+          const tagsUrl = `${hostReachableUrl(configuredLocalGemmaUrl).replace(/\/$/, "")}/api/tags`;
+          const response = await fetch(tagsUrl);
+          if (!response.ok) {
+            throw new Error(`Ollama tags ${response.status}`);
+          }
+          const payload = await response.json();
+          const models = payload.models || [];
+          const hasConfiguredModel = models.some((model) => model.name === localGemmaModel || model.model === localGemmaModel);
+          if (!hasConfiguredModel) {
+            throw new Error(`${localGemmaModel} is not loaded in Ollama.`);
+          }
+          return `${localGemmaModel} is loaded and Ollama is reachable.`;
+        })
+      ]);
       json(res, 200, [
-        { name: "Open-Meteo weather", status: "degraded", detail: "Adapter is configured; live reachability is checked during each context build, not by this health route." },
+        { name: "Open-Meteo weather", status: weatherHealth.ok ? "connected" : "degraded", detail: weatherHealth.detail },
         { name: "Google Calendar", status: calendarConnections.size ? "connected" : "not_configured", detail: calendarConnections.size ? "Routine cold-start sync is active." : "Connect Calendar to cold-start schedule habits." },
-        { name: "Google Places", status: googlePlacesApiKey ? "degraded" : "not_configured", detail: googlePlacesApiKey ? "Nearby place identity, open-now status, ratings, and review-volume popularity metadata are requested during context loading." : "Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY with Places API enabled." },
-        { name: "Royal Holloway events", status: "degraded", detail: "Adapter-ready for active points near Egham/Royal Holloway; other cities show no event signal until their adapter is configured." },
+        { name: "Google Places", status: googlePlacesApiKey ? placesHealth.ok ? "connected" : "degraded" : "not_configured", detail: googlePlacesApiKey ? placesHealth.detail : "Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY with Places API enabled." },
+        { name: "Royal Holloway events", status: eventsHealth.ok ? "connected" : "degraded", detail: eventsHealth.detail },
         {
           name: "Payone density",
           status: demoDemandEnabled ? "degraded" : "not_configured",
@@ -1610,19 +1727,19 @@ const server = http.createServer(async (req, res) => {
         },
         {
           name: "Egham merchant onboarding",
-          status: "degraded",
+          status: "connected",
           detail: "Example Egham merchant profiles are available in the normal map, offer, and business flows for local walkthroughs."
         },
-        { name: "OpenStreetMap places", status: "degraded", detail: "Adapter is configured; nearby businesses are requested from Overpass during live context loading." },
+        { name: "OpenStreetMap places", status: osmHealth.ok ? "connected" : "degraded", detail: osmHealth.detail },
         {
           name: "Hermes/Gemini agent",
-          status: "degraded",
-          detail: "Gateway route is available; each live Gemini call still requires a request Bearer key and reachable Hermes/Gemini runtime."
+          status: hermesHealth.ok ? "connected" : "degraded",
+          detail: hermesHealth.detail
         },
         {
           name: "Local Gemma",
-          status: "degraded",
-          detail: "Device app calls the configured Ollama URL directly; the dev API does not claim the local model is running."
+          status: gemmaHealth.ok ? "connected" : "degraded",
+          detail: gemmaHealth.detail
         },
         {
           name: "QR proof secret",

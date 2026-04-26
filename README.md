@@ -21,6 +21,10 @@ Core capabilities:
 - Business mode with a merchant dashboard, Caffè Nero example account, radius map, Google Places signals, event scanning, Spark recommendations, and campaign controls.
 - Persistent accounts, sessions, wallet ledger, settings, theme selection, and local graph controls.
 
+## App Screenshot
+
+<img src="assets/app_screenshots/spark-city-wallet-screen.png" alt="Spark City Wallet running on Android" width="320" />
+
 ## Architecture
 
 ```text
