@@ -17,6 +17,9 @@ const accounts = new Map();
 const ledgers = new Map();
 const calendarConnections = new Map();
 const eventIntelligenceSettings = new Map();
+const merchantRuleGoals = new Set(["fill_quiet_hours", "move_surplus", "first_time_visit", "increase_repeat_visits"]);
+const merchantRuleWindows = new Set(["breakfast", "lunch", "afternoon", "evening"]);
+const merchantRuleTones = new Set(["cozy", "premium", "playful", "direct"]);
 
 const json = (res, status, body) => {
   const payload = JSON.stringify(body);
@@ -1121,18 +1124,20 @@ const server = http.createServer(async (req, res) => {
       const merchantId = path.split("/")[2];
       const rule = await readJsonBody(req);
       if (
-        !rule.goal ||
+        !merchantRuleGoals.has(rule.goal) ||
         !Number.isFinite(Number(rule.maxDiscountPercent)) ||
         Number(rule.maxDiscountPercent) <= 0 ||
         !Array.isArray(rule.eligibleProducts) ||
         !rule.eligibleProducts.length ||
         !Array.isArray(rule.validWindows) ||
         !rule.validWindows.length ||
+        !rule.validWindows.every((window) => merchantRuleWindows.has(window)) ||
+        !merchantRuleTones.has(rule.brandTone) ||
         !Number.isFinite(Number(rule.dailyRedemptionCap)) ||
         Number(rule.dailyRedemptionCap) <= 0 ||
         !Array.isArray(rule.forbiddenClaims)
       ) {
-        json(res, 400, { error: "Merchant rules require goal, positive maxDiscountPercent, eligibleProducts, validWindows, positive dailyRedemptionCap and forbiddenClaims." });
+        json(res, 400, { error: "Merchant rules require a valid goal, positive maxDiscountPercent, eligibleProducts, validWindows, brandTone, positive dailyRedemptionCap and forbiddenClaims." });
         return;
       }
       const savedRule = {

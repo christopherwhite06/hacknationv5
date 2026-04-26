@@ -185,6 +185,30 @@ const main = async () => {
     if (invalidRule.status !== 400) {
       throw new Error(`Expected non-actionable merchant rule to be rejected, got ${invalidRule.status}: ${await invalidRule.text()}`);
     }
+    const invalidRuleWindow = await fetch(`${baseUrl}/merchants/${merchantId}/rules`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        id: "rule-invalid-window-smoke",
+        merchantId,
+        goal: "fill_quiet_hours",
+        maxDiscountPercent: 20,
+        eligibleProducts: ["coffee"],
+        validWindows: ["midnight"],
+        dailyRedemptionCap: 1,
+        brandTone: "cozy",
+        forbiddenClaims: ["free"],
+        autoApproveWithinRules: true,
+        source: "merchant"
+      })
+    });
+
+    if (invalidRuleWindow.status !== 400) {
+      throw new Error(`Expected invalid merchant rule window to be rejected, got ${invalidRuleWindow.status}: ${await invalidRuleWindow.text()}`);
+    }
 
     const offer = await requestJson("/offers/generate", {
       method: "POST",
