@@ -41,6 +41,7 @@ import {
   loadLocalKnowledgeGraph,
   recordLiveContextInGraph,
   recordManualPromptInGraph,
+  recordOfferOutcomeLocally,
   saveLocalKnowledgeGraph
 } from "./src/services/localKnowledgeGraph";
 import { issueRedemptionToken, loadMerchantAnalytics, validateRedemptionToken } from "./src/services/redemptionService";
@@ -927,6 +928,11 @@ export default function App() {
     const walletLedger = await fetchLedger(issuedToken.userId);
     setLedger(walletLedger);
     await saveOwnerLocalData(issuedToken.userId, { ledger: walletLedger });
+    if (!graphPaused) {
+      const graph = recordOfferOutcomeLocally(localGraph || (await loadLocalKnowledgeGraph(ownerId)), offer.id, "accepted");
+      await saveLocalKnowledgeGraph(graph, ownerId);
+      setLocalGraph(graph);
+    }
     setScreen("qr");
   };
 
@@ -941,6 +947,11 @@ export default function App() {
     const walletLedger = await fetchLedger(validatedToken.userId);
     setLedger(walletLedger);
     await saveOwnerLocalData(validatedToken.userId, { ledger: walletLedger });
+    if (!graphPaused) {
+      const graph = recordOfferOutcomeLocally(localGraph || (await loadLocalKnowledgeGraph(ownerId)), token.offerId, "redeemed");
+      await saveLocalKnowledgeGraph(graph, ownerId);
+      setLocalGraph(graph);
+    }
   };
 
   const dismissOffer = async () => {
@@ -949,6 +960,11 @@ export default function App() {
     }
 
     setAnalytics(await declineOffer(offer.id, merchant.id));
+    if (!graphPaused) {
+      const graph = recordOfferOutcomeLocally(localGraph || (await loadLocalKnowledgeGraph(ownerId)), offer.id, "dismissed");
+      await saveLocalKnowledgeGraph(graph, ownerId);
+      setLocalGraph(graph);
+    }
     setOffer(undefined);
     setScreen("map");
   };

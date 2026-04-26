@@ -353,7 +353,21 @@ export const inferLocalIntentForQuestion = async (
   };
 };
 
-export const recordOfferDismissalLocally = (graph: LocalKnowledgeGraph, offerId: string): LocalKnowledgeGraph => ({
-  nodes: [...graph.nodes, { id: offerId, type: "offer", label: `dismissed ${offerId}`, weight: 0.4 }],
-  edges: [...graph.edges, { from: "current-user", to: offerId, relation: "ignored", weight: 0.4 }]
-});
+export const recordOfferOutcomeLocally = (
+  graph: LocalKnowledgeGraph,
+  offerId: string,
+  outcome: "accepted" | "dismissed" | "redeemed"
+): LocalKnowledgeGraph => {
+  const nodeId = `offer:${outcome}:${offerId}`;
+  const relation = outcome === "dismissed" ? "ignored" : "accepted";
+  const weight = outcome === "dismissed" ? 0.4 : outcome === "accepted" ? 0.82 : 1;
+
+  if (graph.nodes.some((node) => node.id === nodeId)) {
+    return graph;
+  }
+
+  return {
+    nodes: [...graph.nodes, { id: nodeId, type: "offer", label: `${outcome} ${offerId}`, weight }],
+    edges: [...graph.edges, { from: "current-user", to: nodeId, relation, weight }]
+  };
+};
