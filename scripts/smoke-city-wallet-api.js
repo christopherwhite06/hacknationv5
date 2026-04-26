@@ -295,6 +295,9 @@ const main = async () => {
     if (!offer.visualTheme.themeRationale?.toLowerCase().includes("rain")) {
       throw new Error(`Expected rain-themed offer rationale, got ${JSON.stringify(offer.visualTheme)}.`);
     }
+    if (!offer.generationEvidence.merchantRule.includes("1 daily redemption")) {
+      throw new Error(`Expected generated offer evidence to include daily cap, got ${offer.generationEvidence.merchantRule}.`);
+    }
     if (!offer.firstThreeSecondFacts.includes("Claim offer")) {
       throw new Error(`Expected first-three-second facts to include the CTA, got ${JSON.stringify(offer.firstThreeSecondFacts)}.`);
     }

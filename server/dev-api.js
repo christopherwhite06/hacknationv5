@@ -754,7 +754,7 @@ const generatedOffer = (body) => {
         eventAdjustment ? `Business event intelligence active: ${eventAdjustment.reason}` : undefined,
         !eventAdjustment ? `Merchant manual rate applied: ${eventSettings.manualDiscountPercent}% requested, capped by ${rule.maxDiscountPercent}% rule guardrail` : undefined
       ].filter(Boolean),
-      merchantRule: `${rule.goal.replaceAll("_", " ")} with max ${rule.maxDiscountPercent}% discount`,
+      merchantRule: `${rule.goal.replaceAll("_", " ")} with max ${rule.maxDiscountPercent}% discount and ${rule.dailyRedemptionCap} daily redemption${Number(rule.dailyRedemptionCap) === 1 ? "" : "s"}`,
       dealSource: insight.sourceUrl,
       privacy:
         insight.source === "gemma_local"
