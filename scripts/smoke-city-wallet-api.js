@@ -149,6 +149,18 @@ const main = async () => {
       method: "POST",
       body: JSON.stringify({ manualDiscountPercent: 18 })
     });
+    const invalidEventRate = await fetch(`${baseUrl}/merchants/${merchantId}/event-intelligence`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ manualDiscountPercent: 0 })
+    });
+
+    if (invalidEventRate.status !== 400) {
+      throw new Error(`Expected zero manual event rate to be rejected, got ${invalidEventRate.status}: ${await invalidEventRate.text()}`);
+    }
     const invalidRule = await fetch(`${baseUrl}/merchants/${merchantId}/rules`, {
       method: "POST",
       headers: {

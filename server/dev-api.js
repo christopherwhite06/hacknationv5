@@ -1163,18 +1163,29 @@ const server = http.createServer(async (req, res) => {
         ? body.scanCadence
         : current.scanCadence;
       const mode = body.mode === "auto" || body.mode === "manual" ? body.mode : current.mode;
+      const providedManualDiscount = Number(body.manualDiscountPercent);
+      const providedMinAutoDiscount = Number(body.minAutoDiscountPercent);
+      const providedMaxAutoDiscount = Number(body.maxAutoDiscountPercent);
+      if (
+        (Number.isFinite(providedManualDiscount) && providedManualDiscount <= 0) ||
+        (Number.isFinite(providedMinAutoDiscount) && providedMinAutoDiscount < 0) ||
+        (Number.isFinite(providedMaxAutoDiscount) && providedMaxAutoDiscount <= 0)
+      ) {
+        json(res, 400, { error: "Event intelligence rates must keep manual/max discounts above 0 and min discounts at or above 0." });
+        return;
+      }
       const next = {
         ...current,
         mode,
         scanCadence,
-        manualDiscountPercent: Number.isFinite(Number(body.manualDiscountPercent))
-          ? Math.max(0, Math.min(50, Number(body.manualDiscountPercent)))
+        manualDiscountPercent: Number.isFinite(providedManualDiscount)
+          ? Math.min(50, providedManualDiscount)
           : current.manualDiscountPercent,
-        minAutoDiscountPercent: Number.isFinite(Number(body.minAutoDiscountPercent))
-          ? Math.max(0, Math.min(50, Number(body.minAutoDiscountPercent)))
+        minAutoDiscountPercent: Number.isFinite(providedMinAutoDiscount)
+          ? Math.min(50, providedMinAutoDiscount)
           : current.minAutoDiscountPercent,
-        maxAutoDiscountPercent: Number.isFinite(Number(body.maxAutoDiscountPercent))
-          ? Math.max(0, Math.min(50, Number(body.maxAutoDiscountPercent)))
+        maxAutoDiscountPercent: Number.isFinite(providedMaxAutoDiscount)
+          ? Math.min(50, providedMaxAutoDiscount)
           : current.maxAutoDiscountPercent,
         nextScanAt: nextScanAt(scanCadence)
       };
