@@ -1090,7 +1090,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && path.startsWith("/redemptions/") && path.endsWith("/validate")) {
-      const tokenId = path.split("/")[2];
+      const tokenId = decodeURIComponent(path.split("/")[2]);
       const token = redemptions.get(tokenId);
       const body = await readJsonBody(req);
 
