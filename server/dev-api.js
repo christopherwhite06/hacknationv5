@@ -237,8 +237,22 @@ const addLedgerEntry = (userId, entry) => {
 const couponCode = (merchantId) =>
   `SPARK-${merchantId.slice(0, 2).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
-const hashPassword = (password) =>
-  crypto.createHash("sha256").update(`city-wallet-dev:${password}`).digest("hex");
+const hashPassword = (password, salt) =>
+  crypto.scryptSync(String(password), salt, 32).toString("hex");
+
+const createPasswordRecord = (password) => {
+  const salt = crypto.randomBytes(16).toString("hex");
+  return {
+    passwordSalt: salt,
+    passwordHash: hashPassword(password, salt)
+  };
+};
+
+const verifyPassword = (password, profile) => {
+  const expectedHash = Buffer.from(profile.passwordHash, "hex");
+  const providedHash = Buffer.from(hashPassword(password, profile.passwordSalt), "hex");
+  return expectedHash.length === providedHash.length && crypto.timingSafeEqual(expectedHash, providedHash);
+};
 
 const distanceMeters = (from, to) => {
   const earthRadiusM = 6371000;
@@ -781,7 +795,7 @@ const server = http.createServer(async (req, res) => {
         username: body.username,
         email: body.email,
         accountType: body.accountType === "business" ? "business" : "user",
-        passwordHash: hashPassword(body.password),
+        ...createPasswordRecord(body.password),
         sessionToken: `session-${Date.now()}`
       };
       accounts.set(body.email, profile);
@@ -806,7 +820,7 @@ const server = http.createServer(async (req, res) => {
         json(res, 401, { error: "Account not found. Create a real account before signing in." });
         return;
       }
-      if (profile.passwordHash !== hashPassword(body.password)) {
+      if (!verifyPassword(body.password, profile)) {
         json(res, 401, { error: "Invalid password." });
         return;
       }
