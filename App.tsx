@@ -4182,9 +4182,9 @@ function MerchantScreen({
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Privacy Boundary</Text>
         <Text style={styles.bullet}>- Local: {aiStackValidation.localModel.requested}</Text>
-        <Text style={styles.bullet}>- Runtime: {aiStackValidation.localModel.mvpRuntime}</Text>
+        <Text style={styles.bullet}>- Runtime: {aiStackValidation.localModel.mvpRuntime} ({aiStackValidation.localModel.status.replaceAll("_", " ")})</Text>
         <Text style={styles.bullet}>- Cloud: {aiStackValidation.cloudAgent.requested}</Text>
-        <Text style={styles.bullet}>- Hermes: {aiStackValidation.cloudAgent.browserLayer}</Text>
+        <Text style={styles.bullet}>- Hermes: {aiStackValidation.cloudAgent.browserLayer} ({aiStackValidation.cloudAgent.status.replaceAll("_", " ")})</Text>
         <Text style={styles.bullet}>- Outbound data: {aiStackValidation.cloudAgent.outboundData.join(", ")}</Text>
       </View>
     </>

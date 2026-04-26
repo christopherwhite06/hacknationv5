@@ -5,13 +5,13 @@ export const aiStackValidation: AiStackValidation = {
   localModel: {
     requested: "Gemma 4 E4B on-device",
     mvpRuntime: "Required local Gemma runtime at EXPO_PUBLIC_LOCAL_GEMMA_URL",
-    status: "live_ready",
+    status: "adapter_ready",
     privacyBoundary: "Raw activity, habit, preference, and location graph stays on the phone."
   },
   cloudAgent: {
     requested: "Gemini 3.1 Pro Preview with Hermes Agent browser",
     browserLayer: "Required Hermes Agent endpoint at EXPO_PUBLIC_HERMES_AGENT_URL",
-    status: "live_ready",
+    status: "adapter_ready",
     outboundData: ["abstract intent", "coarse city area", "merchant category", "non-personal context", "local browser skills for public sites"]
   }
 };
