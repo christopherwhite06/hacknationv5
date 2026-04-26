@@ -1484,7 +1484,7 @@ export default function App() {
         {screen === "map" && liveSetupError && (
           <EmptyState
             title="Live deal setup required"
-            body={`${liveSetupError} Profile, settings, map movement, and business tools still work.`}
+            body={`${liveSetupError} Spark will not invent weather, event, merchant, or demand signals; fix the connector/configuration and retry. Profile, settings, map movement, and business tools still work.`}
           />
         )}
 
