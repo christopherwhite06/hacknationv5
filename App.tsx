@@ -4175,9 +4175,9 @@ function KnowledgeGraphScreen({
   activeEdgeIndex: number;
   intent?: LocalIntent;
   graphPaused: boolean;
-  onPauseGraph: (paused: boolean) => void;
-  onExportGraph: () => void;
-  onDeleteGraph: () => void;
+  onPauseGraph: (paused: boolean) => void | Promise<void>;
+  onExportGraph: () => void | Promise<void>;
+  onDeleteGraph: () => void | Promise<void>;
 }) {
   const { styles, theme } = useThemeKit();
   const activeEdge = graph.edges[activeEdgeIndex % Math.max(graph.edges.length, 1)];
@@ -4188,6 +4188,7 @@ function KnowledgeGraphScreen({
   const [selectedCluster, setSelectedCluster] = useState<GraphClusterId>(agentCluster);
   const [scale, setScale] = useState(0.58);
   const [translate, setTranslate] = useState({ x: -90, y: -35 });
+  const [privacyStatus, setPrivacyStatus] = useState("Local graph controls are ready.");
   const panStart = useRef(translate);
   const selectedEdges = selectedNode
     ? graph.edges.filter((edge) => edge.from === selectedNode.id || edge.to === selectedNode.id)
@@ -4550,15 +4551,35 @@ function KnowledgeGraphScreen({
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Privacy Controls</Text>
         <Text style={styles.muted}>Inspect, pause, export, or delete the local graph that Gemma uses. Export stays on this device and is never posted to the City Wallet API.</Text>
+        <Text style={styles.caption}>{privacyStatus}</Text>
         <View style={styles.row}>
-          <TouchableOpacity style={styles.primaryButtonFlex} onPress={() => onPauseGraph(!graphPaused)}>
+          <TouchableOpacity
+            style={styles.primaryButtonFlex}
+            onPress={async () => {
+              const nextPaused = !graphPaused;
+              await onPauseGraph(nextPaused);
+              setPrivacyStatus(nextPaused ? "Private graph use is paused; Spark will not read or write local memory." : "Private graph use is active again.");
+            }}
+          >
             <Text style={styles.primaryButtonText}>{graphPaused ? "Resume graph" : "Pause graph"}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={onExportGraph}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={async () => {
+              await onExportGraph();
+              setPrivacyStatus("Graph export stayed on this device; no API upload was made.");
+            }}
+          >
             <Text style={styles.secondaryButtonText}>Export</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.secondaryButton} onPress={onDeleteGraph}>
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={async () => {
+            await onDeleteGraph();
+            setPrivacyStatus("Local graph deleted from this device.");
+          }}
+        >
           <Text style={styles.secondaryButtonText}>Delete local graph</Text>
         </TouchableOpacity>
       </View>
