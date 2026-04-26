@@ -3588,6 +3588,7 @@ function WalletLedgerScreen({
   const confirmedSavingsCents = ledger
     .filter((entry) => (entry.type === "redeemed" || entry.type === "cashback") && Number(entry.amountCents || 0) > 0)
     .reduce((total, entry) => total + Number(entry.amountCents || 0), 0);
+  const securityConnectors = connectorHealth.filter((connector) => /qr|proof|secret|checkout/i.test(`${connector.name} ${connector.detail}`));
 
   return (
     <>
@@ -3617,6 +3618,21 @@ function WalletLedgerScreen({
           <Text style={styles.muted}>Your wallet history will appear after Spark creates and redeems offers.</Text>
         )}
       </View>
+
+      {securityConnectors.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Checkout Security Health</Text>
+          {securityConnectors.map((connector) => (
+            <View key={connector.name} style={styles.settingRow}>
+              <View style={styles.listTextWrap}>
+                <Text style={styles.ruleLine}>{connector.name}</Text>
+                <Text style={styles.caption}>{connector.detail}</Text>
+              </View>
+              <Text style={styles.statusBadge}>{connector.status.replaceAll("_", " ")}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Live Connectors</Text>
