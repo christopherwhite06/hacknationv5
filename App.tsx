@@ -3389,6 +3389,7 @@ function OfferScreen({
   const palette = offer.visualTheme.palette;
   const accent = palette[0] || "#E30613";
   const expiresAt = new Date(offer.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const offerExpired = Date.parse(offer.expiresAt) <= Date.now();
   const primaryReason = offer.visibleReasons[0] || offer.generationEvidence.context[0] || "Live context matched merchant guardrails";
   const dealSourceLabel = offer.generationEvidence.dealSource.startsWith("local://")
     ? "Local Gemma evidence"
@@ -3424,9 +3425,10 @@ function OfferScreen({
           </View>
         </View>
         <Text style={styles.couponCode}>Code: {offer.couponCode}</Text>
+        {offerExpired && <Text style={styles.offerBody}>Expired: generate a fresh live-context offer before issuing a QR token.</Text>}
 
         <View style={styles.row}>
-          <TouchableOpacity style={styles.primaryButtonFlex} onPress={onAccept}>
+          <TouchableOpacity style={[styles.primaryButtonFlex, offerExpired && styles.buttonDisabled]} disabled={offerExpired} onPress={onAccept}>
             <Text style={styles.primaryButtonText}>{offer.cta}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryButton} onPress={onDismiss}>
