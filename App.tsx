@@ -2390,9 +2390,9 @@ function DemoJourneyScreen({
     (!merchantRule ? "No merchant-supplied or labelled demo campaign rule is active for the ranked merchant." : undefined) ||
     (!offer ? "No generated offer is available yet. Spark will not show a static fallback offer." : undefined);
   const activeConnectors = connectorHealth.filter((connector) => connector.status !== "not_configured");
-  const configuredConnectorCount = activeConnectors.length || connectorHealth.length;
+  const configNeededConnectorCount = connectorHealth.length - activeConnectors.length;
   const demoConnectorText = connectorHealth
-    .filter((connector) => /demo|payone/i.test(connector.name) || /demo/i.test(connector.detail))
+    .filter((connector) => connector.status !== "not_configured" && /demo/i.test(`${connector.name} ${connector.detail}`))
     .map((connector) => `${connector.name}: ${connector.detail}`);
   const liveOrDeviceSignals = context?.sourceEvidence.filter((evidence) => evidence.status === "live" || evidence.status === "device") || [];
   const demoSignalCount = context?.sourceEvidence.filter((evidence) => evidence.status === "demo").length || 0;
@@ -2607,7 +2607,7 @@ function DemoJourneyScreen({
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Reality and Privacy Check</Text>
-        <Text style={styles.bullet}>- Configured connectors visible: {configuredConnectorCount}</Text>
+        <Text style={styles.bullet}>- Active/configured connectors visible: {activeConnectors.length}; config-needed connectors: {configNeededConnectorCount}</Text>
         <Text style={styles.bullet}>- Private graph, preferences, routine and precise movement history stay local.</Text>
         <Text style={styles.bullet}>- Cloud/Hermes/Gemini receives only abstract intent plus public context and merchant facts.</Text>
         {demoConnectorText.length ? (
