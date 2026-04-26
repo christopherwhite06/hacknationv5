@@ -57,6 +57,12 @@ const main = async () => {
     const health = await waitForApi();
     const merchantId = `smoke-merchant-${Date.now()}`;
     const userId = `smoke-user-${Date.now()}`;
+    const hermesHealth = health.find((connector) => connector.name === "Hermes/Gemini agent");
+    const gemmaHealth = health.find((connector) => connector.name === "Local Gemma");
+
+    if (hermesHealth?.status !== "degraded" || gemmaHealth?.status !== "degraded") {
+      throw new Error(`Expected AI runtime health to be adapter/degraded until probed live, got ${JSON.stringify({ hermesHealth, gemmaHealth })}.`);
+    }
 
     await requestJson(`/merchants/${merchantId}/event-intelligence`, {
       method: "POST",

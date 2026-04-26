@@ -1181,8 +1181,16 @@ const server = http.createServer(async (req, res) => {
             : "No demo merchant campaign rules are enabled."
         },
         { name: "OpenStreetMap places", status: "connected", detail: "Nearby businesses are loaded from OpenStreetMap Overpass." },
-        { name: "Hermes/Gemini agent", status: "connected", detail: "Local gateway endpoint is responding." },
-        { name: "Local Gemma", status: "connected", detail: "App calls Ollama from the device through 10.0.2.2." }
+        {
+          name: "Hermes/Gemini agent",
+          status: "degraded",
+          detail: "Gateway route is available; each live Gemini call still requires a request Bearer key and reachable Hermes/Gemini runtime."
+        },
+        {
+          name: "Local Gemma",
+          status: "degraded",
+          detail: "Device app calls the configured Ollama URL directly; the dev API does not claim the local model is running."
+        }
       ]);
       return;
     }
