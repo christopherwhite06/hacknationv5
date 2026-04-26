@@ -611,20 +611,40 @@ const generatedOffer = (body) => {
   const rainy = contextText.includes("rain");
   const quiet = contextText.includes("quiet") || contextText.includes("baseline");
   const eventLinked = Boolean(insight.localEventTieIn);
+  const openNow = contextText.includes("appears open");
+  const closedNow = contextText.includes("appears closed");
+  const cold = contextText.includes("cold") || /\b\d+c\b/.test(contextText);
   const frame = rainy
     ? "rainy study break"
     : eventLinked
       ? "campus event moment"
       : quiet
         ? "quiet-hour merchant boost"
-        : "nearby study break";
+        : openNow
+          ? "open-now nearby break"
+          : closedNow
+            ? "opening-hours check"
+            : cold
+              ? "warm-up nearby break"
+              : "nearby study break";
   const palette = rainy
     ? ["#1E3A8A", "#DBEAFE", "#FFFFFF"]
     : eventLinked
       ? ["#6D28D9", "#EDE9FE", "#FFFFFF"]
       : quiet
         ? ["#047857", "#D1FAE5", "#FFFFFF"]
-        : ["#E30613", "#FFFFFF", "#1A1A1A"];
+        : openNow
+          ? ["#B91C1C", "#FEE2E2", "#FFFFFF"]
+          : closedNow
+            ? ["#374151", "#F3F4F6", "#FFFFFF"]
+            : cold
+              ? ["#0F766E", "#CCFBF1", "#FFFFFF"]
+              : ["#E30613", "#FFFFFF", "#1A1A1A"];
+  const openingFact = openNow
+    ? "Appears open now"
+    : closedNow
+      ? "Opening status needs care"
+      : "Opening status unknown";
 
   updateAnalytics(merchant.id, { impressions: merchantAnalytics(merchant.id).impressions + 1 });
 
@@ -645,7 +665,7 @@ const generatedOffer = (body) => {
     visualTheme: {
       palette,
       imagePrompt: `three second city wallet offer card for ${product} near ${merchant.name}, ${frame}`,
-      icon: rainy ? "rain" : quiet ? "quiet" : "spark"
+      icon: rainy ? "rain" : eventLinked ? "event" : quiet ? "quiet" : openNow ? "open" : closedNow ? "hours" : "spark"
     },
     visibleReasons: body.context?.visibleReasons || [],
     generationEvidence: {
@@ -670,7 +690,7 @@ const generatedOffer = (body) => {
       `${discountPercent}% cashback`,
       `${product} now`,
       "Expires in 12 minutes",
-      code
+      openingFact
     ]
   };
 };
