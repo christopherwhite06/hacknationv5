@@ -1030,10 +1030,13 @@ export default function App() {
   const submitAuth = async () => {
     setError(undefined);
     try {
+      const accountRequest = authMode === "create"
+        ? { ...authForm, username: authForm.username.trim(), email: authForm.email.trim() }
+        : { ...authForm, email: authForm.email.trim() };
       const profile =
         authMode === "create"
-          ? await createAccount(authForm)
-          : await loginAccount(authForm);
+          ? await createAccount(accountRequest)
+          : await loginAccount(accountRequest);
       const storedAccount = { ...profile, password: "" };
       await AsyncStorage.setItem(storageKeys.account, JSON.stringify(storedAccount));
       if (storedAccount.accountType === "business") {
