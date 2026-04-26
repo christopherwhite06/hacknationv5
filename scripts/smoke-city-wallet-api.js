@@ -304,6 +304,10 @@ const main = async () => {
       method: "POST",
       body: JSON.stringify({ merchantId })
     });
+    await requestJson("/offers/decline", {
+      method: "POST",
+      body: JSON.stringify({ merchantId, offerId: offer.id })
+    });
 
     const analytics = await requestJson(`/merchants/${merchantId}/analytics`);
 
@@ -312,6 +316,9 @@ const main = async () => {
     }
     if (analytics.accepts < 1 || analytics.redemptions < 1) {
       throw new Error(`Expected accept/redemption analytics, got ${JSON.stringify(analytics)}.`);
+    }
+    if (analytics.declines !== 1) {
+      throw new Error(`Expected one aggregate decline after dismiss smoke, got ${JSON.stringify(analytics)}.`);
     }
     if (analytics.redemptionRate !== 1) {
       throw new Error(`Expected measured checkout conversion of 1, got ${analytics.redemptionRate}.`);
@@ -333,6 +340,7 @@ const main = async () => {
           tokenStatus: validated.status,
           analytics: {
             accepts: analytics.accepts,
+            declines: analytics.declines,
             redemptions: analytics.redemptions,
             acceptRate: analytics.acceptRate,
             redemptionRate: analytics.redemptionRate,
