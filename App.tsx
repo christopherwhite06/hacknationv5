@@ -394,9 +394,9 @@ export default function App() {
       const [user, { context: liveContext, merchants: liveMerchants }, storedGraph] = await Promise.all([
         fetchWalletUserForSession(),
         buildContextState(point, ownerId, previousPoint),
-        loadLocalKnowledgeGraph(ownerId)
+        graphPaused ? Promise.resolve(privacyPausedGraph) : loadLocalKnowledgeGraph(ownerId)
       ]);
-      const localGraph = graphPaused ? storedGraph : recordLiveContextInGraph(storedGraph, liveContext, liveMerchants);
+      const localGraph = graphPaused ? privacyPausedGraph : recordLiveContextInGraph(storedGraph, liveContext, liveMerchants);
       const selectedMerchant = liveMerchants.find((candidate) => candidate.id === liveContext.rankedMerchantIds[0]);
 
       if (!graphPaused) {
@@ -766,15 +766,15 @@ export default function App() {
         }
         setLocationSource(source);
 
-        const savedHome = await AsyncStorage.getItem(ownerHomeKey(ownerId));
+        const savedHome = graphPaused ? undefined : await AsyncStorage.getItem(ownerHomeKey(ownerId));
         const parsedHome = savedHome ? (JSON.parse(savedHome) as GeoPoint) : undefined;
         const staleHome = parsedHome && distanceMeters(point, parsedHome) > 10_000;
         const resolvedHome = parsedHome && !staleHome ? parsedHome : point;
-        if (!savedHome || staleHome) {
+        if (!graphPaused && (!savedHome || staleHome)) {
           await AsyncStorage.setItem(ownerHomeKey(ownerId), JSON.stringify(resolvedHome));
         }
-        const storedGraph = await loadLocalKnowledgeGraph(ownerId);
-        const graphWithHome = graphPaused ? storedGraph : addHomeLocationToGraph(storedGraph, resolvedHome);
+        const storedGraph = graphPaused ? privacyPausedGraph : await loadLocalKnowledgeGraph(ownerId);
+        const graphWithHome = graphPaused ? privacyPausedGraph : addHomeLocationToGraph(storedGraph, resolvedHome);
         if (!graphPaused) {
           await saveLocalKnowledgeGraph(graphWithHome, ownerId);
         }
@@ -784,10 +784,16 @@ export default function App() {
         setHomePoint(resolvedHome);
         setLocalGraph(graphWithHome);
 
-        setTravelStatus("Real GPS active. Current location is saved as a device-local Home waypoint, so standing still here will not trigger Spark.");
+        setTravelStatus(
+          graphPaused
+            ? "Real GPS active. Private graph use is paused, so Spark did not read or write the saved Home waypoint."
+            : "Real GPS active. Current location is saved as a device-local Home waypoint, so standing still here will not trigger Spark."
+        );
         await loadPipelineForPoint(
           point,
-          "Device-local Home waypoint set from real GPS. Spark will suppress standing-still triggers here."
+          graphPaused
+            ? "Private graph use is paused. Spark used live GPS without reading or writing local graph memory."
+            : "Device-local Home waypoint set from real GPS. Spark will suppress standing-still triggers here."
         );
       } catch (caught) {
         if (active) {
