@@ -292,6 +292,9 @@ const main = async () => {
     if (offer.visualTheme.icon !== "rain") {
       throw new Error(`Expected rain-themed offer icon, got ${offer.visualTheme.icon}.`);
     }
+    if (!offer.visualTheme.themeRationale?.toLowerCase().includes("rain")) {
+      throw new Error(`Expected rain-themed offer rationale, got ${JSON.stringify(offer.visualTheme)}.`);
+    }
     if (!offer.firstThreeSecondFacts.includes("Claim offer")) {
       throw new Error(`Expected first-three-second facts to include the CTA, got ${JSON.stringify(offer.firstThreeSecondFacts)}.`);
     }

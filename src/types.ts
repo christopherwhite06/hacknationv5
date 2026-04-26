@@ -274,6 +274,7 @@ export interface GeneratedOffer {
     palette: string[];
     imagePrompt: string;
     icon: string;
+    themeRationale: string;
   };
   visibleReasons: string[];
   firstThreeSecondFacts: string[];

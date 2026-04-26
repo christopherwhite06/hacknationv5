@@ -3421,6 +3421,7 @@ function OfferScreen({
         <Text style={styles.bullet}>- End state: accept creates QR/token, dismiss records aggregate decline, expiry closes the offer.</Text>
         <Text style={styles.bullet}>- Emotional frame: {offer.emotionalFrame}</Text>
         <Text style={styles.bullet}>- GenUI theme: {offer.visualTheme.icon} · {offer.visualTheme.palette.join(", ")}</Text>
+        <Text style={styles.bullet}>- Theme rationale: {offer.visualTheme.themeRationale}</Text>
         <Text style={styles.bullet}>- Offer guardrail: {offer.generationEvidence.merchantRule}</Text>
         <Text style={styles.bullet}>- Deal source: {offer.generationEvidence.dealSource}</Text>
         <Text style={styles.bullet}>- Privacy: {offer.generationEvidence.privacy}</Text>

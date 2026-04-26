@@ -706,6 +706,19 @@ const generatedOffer = (body) => {
     : closedNow
       ? "Opening status needs care"
       : "Opening status unknown";
+  const themeRationale = rainy
+    ? "Rain context selected a blue, sheltered-break wallet card."
+    : eventLinked
+      ? "Local event context selected a purple event-moment wallet card."
+      : quiet
+        ? "Quiet demand context selected a green merchant-boost wallet card."
+        : openNow
+          ? "Open-now evidence selected a red nearby-action wallet card."
+          : closedNow
+            ? "Opening-hours uncertainty selected a muted caution wallet card."
+            : cold
+              ? "Cold context selected a teal warm-up wallet card."
+              : "Nearby context selected the default Spark wallet card.";
 
   updateAnalytics(merchant.id, { impressions: merchantAnalytics(merchant.id).impressions + 1 });
 
@@ -726,7 +739,8 @@ const generatedOffer = (body) => {
     visualTheme: {
       palette,
       imagePrompt: `three second city wallet offer card for ${product} near ${merchant.name}, ${frame}`,
-      icon: rainy ? "rain" : eventLinked ? "event" : quiet ? "quiet" : openNow ? "open" : closedNow ? "hours" : "spark"
+      icon: rainy ? "rain" : eventLinked ? "event" : quiet ? "quiet" : openNow ? "open" : closedNow ? "hours" : "spark",
+      themeRationale
     },
     visibleReasons: body.context?.visibleReasons || [],
     generationEvidence: {
