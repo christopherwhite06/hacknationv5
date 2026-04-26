@@ -88,6 +88,18 @@ const main = async () => {
         throw new Error(`Expected Stuttgart event scan to show config-needed source, got ${JSON.stringify(stuttgartScan)}.`);
       }
 
+      const missingScanPoint = await fetch(`${baseUrl}/merchants/scenario-cafe/event-intelligence/scan`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ merchant: {} })
+      });
+      if (missingScanPoint.status !== 400) {
+        throw new Error(`Expected event scan without merchant location to be rejected, got ${missingScanPoint.status}: ${await missingScanPoint.text()}`);
+      }
+
       return density.length;
     }
   });

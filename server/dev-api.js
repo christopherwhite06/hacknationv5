@@ -267,6 +267,15 @@ const verifyPassword = (password, profile) => {
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 const normalizeUsername = (username) => String(username || "").trim();
 
+const coerceGeoPoint = (point) => {
+  const latitude = Number(point?.latitude ?? point?.lat);
+  const longitude = Number(point?.longitude ?? point?.lon);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return undefined;
+  }
+  return { latitude, longitude };
+};
+
 const distanceMeters = (from, to) => {
   const earthRadiusM = 6371000;
   const deltaLat = ((to.latitude - from.latitude) * Math.PI) / 180;
@@ -1291,7 +1300,11 @@ const server = http.createServer(async (req, res) => {
       const merchantId = decodeURIComponent(path.split("/")[2]);
       const body = await readJsonBody(req);
       const settings = eventSettingsFor(merchantId);
-      const point = body.merchant?.location || royalHollowayPoint;
+      const point = coerceGeoPoint(body.merchant?.location);
+      if (!point) {
+        json(res, 400, { error: "merchant.location latitude/longitude is required for event intelligence scans." });
+        return;
+      }
       const eventAdapterInArea = distanceMeters(point, royalHollowayPoint) <= 20000;
       const events = eventAdapterInArea ? await royalHollowayEvents(point) : [];
       const plan = buildEventDiscountPlan(merchantId, settings, events);

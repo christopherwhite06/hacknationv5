@@ -102,7 +102,7 @@ For a faster city/data-source audit only, run:
 npm run smoke:scenarios
 ```
 
-This checks labelled Payone demo demand, no-demand behavior when the demo connector is disabled, and Stuttgart event scoping/config-needed source labels without launching the app.
+This checks labelled Payone demo demand, no-demand behavior when the demo connector is disabled, Stuttgart event scoping/config-needed source labels, and rejection of event scans that do not include a real merchant location without launching the app.
 
 For emulator inspection, use the `Demo` tab as the judge-facing checklist, then test Egham/Stuttgart/current GPS from `Map` -> `Simulate`.
 
