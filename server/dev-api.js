@@ -1243,7 +1243,8 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const settings = eventSettingsFor(merchantId);
       const point = body.merchant?.location || royalHollowayPoint;
-      const events = await royalHollowayEvents(point);
+      const eventAdapterInArea = distanceMeters(point, royalHollowayPoint) <= 20000;
+      const events = eventAdapterInArea ? await royalHollowayEvents(point) : [];
       const plan = buildEventDiscountPlan(merchantId, settings, events);
       const scannedAt = new Date().toISOString();
       const next = {
@@ -1258,11 +1259,13 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, {
         merchantId,
         scannedAt,
-        sourceUrl: royalHollowayEventsUrl,
+        sourceUrl: eventAdapterInArea ? royalHollowayEventsUrl : "not_configured://events-adapter",
         events,
         recommendedDiscountPercent: plan.recommendedDiscountPercent,
         decisionSource: "live_event_policy",
-        rationale: plan.rationale,
+        rationale: eventAdapterInArea
+          ? plan.rationale
+          : ["No event adapter is configured for this city, so Spark keeps the current merchant rate.", ...plan.rationale],
         scheduledAdjustments: settings.mode === "auto" ? next.scheduledAdjustments : plan.scheduledAdjustments
       });
       return;

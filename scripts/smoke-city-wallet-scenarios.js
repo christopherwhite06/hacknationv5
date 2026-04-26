@@ -76,6 +76,18 @@ const main = async () => {
         throw new Error(`Expected Stuttgart event signal to stay unconfigured, got ${JSON.stringify(stuttgartEvents)}.`);
       }
 
+      const stuttgartScan = await requestJson(baseUrl, "/merchants/scenario-cafe/event-intelligence/scan", {
+        method: "POST",
+        body: JSON.stringify({
+          merchant: {
+            location: { lat: 48.7758, lon: 9.1829 }
+          }
+        })
+      });
+      if (stuttgartScan.sourceUrl !== "not_configured://events-adapter" || stuttgartScan.events.length !== 0) {
+        throw new Error(`Expected Stuttgart event scan to show config-needed source, got ${JSON.stringify(stuttgartScan)}.`);
+      }
+
       return density.length;
     }
   });
