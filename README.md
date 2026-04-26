@@ -94,7 +94,7 @@ Run the full validation suite before demo-critical changes:
 npm run smoke:full
 ```
 
-The full smoke command runs TypeScript validation, then starts `server/dev-api.js` on isolated local ports with clearly labelled demo Payone demand and demo merchant supply enabled. It validates connector health, including adapter-ready/degraded status for public adapters that are not probed by the health route, duplicate-account and wrong-password rejection, merchant manual rate influence on generated offers, event-rate and merchant-rule guardrails, context-responsive offer theming, QR/token issue and validation, city/source scenarios, and aggregate merchant analytics.
+The full smoke command runs TypeScript validation, then starts `server/dev-api.js` on isolated local ports with clearly labelled demo Payone demand and demo merchant supply enabled. It validates connector health, including adapter-ready/degraded status for public adapters that are not probed by the health route, duplicate-account and wrong-password rejection, merchant manual rate influence on generated offers, event-rate and merchant-rule guardrails, context-responsive offer theming, QR/token issue, full scanned-payload validation, replay rejection, city/source scenarios, and aggregate merchant analytics.
 
 For a faster city/data-source audit only, run:
 
@@ -102,7 +102,7 @@ For a faster city/data-source audit only, run:
 npm run smoke:scenarios
 ```
 
-This checks labelled Payone demo demand, no-demand behavior when the demo connector is disabled, and Stuttgart event scoping without launching the app.
+This checks labelled Payone demo demand, no-demand behavior when the demo connector is disabled, and Stuttgart event scoping/config-needed source labels without launching the app.
 
 For emulator inspection, use the `Demo` tab as the judge-facing checklist, then test Egham/Stuttgart/current GPS from `Map` -> `Simulate`.
 
