@@ -2435,6 +2435,13 @@ function DemoJourneyScreen({
   const checkoutStatus = token
     ? `${token.status} token, ${analytics?.redemptions ?? 0} merchant redemptions`
     : "No token yet; accept the generated offer to issue checkout proof.";
+  const checkoutControlHint = offerExpired
+    ? "Offer expired; generate a fresh offer before issuing QR proof."
+    : token?.status === "validated"
+      ? "Token already validated; replay scans stay blocked."
+      : token && !canRedeemToken
+        ? "Token is no longer redeemable; issue a fresh checkout token."
+        : "QR issue and redemption controls are enabled only for current, one-time checkout states.";
   const judgeCoverage = [
     {
       title: "01 Context sensing",
@@ -2607,6 +2614,7 @@ function DemoJourneyScreen({
           value={offer ? `expires ${new Date(offer.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}, accept, or dismiss` : "expiry/accept/dismiss after generation"}
         />
         {offer && (
+          <>
           <View style={styles.row}>
             <TouchableOpacity
               style={[styles.primaryButtonFlex, !canAcceptOffer && styles.buttonDisabled]}
@@ -2623,6 +2631,8 @@ function DemoJourneyScreen({
               <Text style={styles.secondaryButtonText}>Redeem token</Text>
             </TouchableOpacity>
           </View>
+          <Text style={styles.caption}>{checkoutControlHint}</Text>
+          </>
         )}
       </View>
 
