@@ -1,0 +1,36 @@
+flowchart LR
+  User[Customer App<br/>React Native / Expo] --> Map[Google Maps<br/>Device Location]
+  User --> Context[Context Engine]
+  User --> Graph[Private Local Knowledge Graph]
+  User --> Wallet[Wallet / Offer / QR UI]
+
+  Context --> Weather[Weather Adapter]
+  Context --> Places[Google Places Adapter]
+  Context --> Events[Local Events Adapter]
+  Context --> Density[Transaction Density Adapter]
+  Context --> MerchantState[Merchant Rules + Opening Status]
+
+  Graph --> Gemma[Local Gemma<br/>Ollama API]
+  Context --> AbstractIntent[Abstract Intent<br/>Non-Personal Context]
+  AbstractIntent --> Hermes[Hermes Agent Gateway]
+  Hermes --> Gemini[Gemini Models]
+
+  Gemini --> OfferEngine[Generative Offer Engine]
+  Gemma --> OfferEngine
+  MerchantState --> OfferEngine
+  Context --> OfferEngine
+
+  OfferEngine --> Wallet
+  Wallet --> Redemption[QR Token Issue + Validate]
+  Redemption --> Ledger[Cashback Ledger]
+  Redemption --> Analytics[Aggregate Merchant Analytics]
+
+  Merchant[Business Mode] --> MerchantDashboard[Merchant Dashboard]
+  MerchantDashboard --> MerchantState
+  MerchantDashboard --> Events
+  MerchantDashboard --> Analytics
+
+  CityApi[City Wallet API<br/>server/dev-api.js] --> Context
+  CityApi --> OfferEngine
+  CityApi --> Redemption
+  CityApi --> MerchantDashboard

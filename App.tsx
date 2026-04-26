@@ -21,13 +21,13 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import QRCode from "react-native-qrcode-svg";
 import Svg, { Line } from "react-native-svg";
 import { WebView } from "react-native-webview";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { cityWalletConfig, cityWalletConfigForPoint, cityWalletConfigs, CityWalletConfig } from "./src/config/cityWalletConfig";
-import { aiStackValidation, discoverDealInsight } from "./src/services/aiStack";
+import { discoverDealInsight } from "./src/services/aiStack";
 import { learnBrowserSkillFromDeal, loadRelevantBrowserSkills } from "./src/services/browserSkills";
 import { buildContextState } from "./src/services/contextEngine";
 import { evaluateContextTrigger } from "./src/services/contextTriggerEngine";
@@ -77,6 +77,7 @@ import {
   CalendarEvent,
   ConnectorHealth,
   ContextState,
+  DemandSignal,
   GeneratedOffer,
   GeoPoint,
   LedgerEntry,
@@ -92,7 +93,7 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
-type Screen = "map" | "demo" | "graph" | "routine" | "offer" | "qr" | "wallet" | "profile" | "merchant";
+type Screen = "map" | "graph" | "routine" | "offer" | "qr" | "wallet" | "profile" | "merchant";
 type ThemeMode = "light" | "dark";
 type AuthMode = "login" | "create";
 type CurrencyCode = "EUR" | "USD" | "GBP";
@@ -110,6 +111,7 @@ const appName = "Spark City Wallet";
 const splashLogo = require("./assets/ChatGPT Image Apr 25, 2026, 10_59_28 PM.png");
 const appLogo = require("./assets/final_logo.png");
 const sparkAgentImage = require("./assets/spark_agent_picture_transparent.png");
+const caffeNeroLogo = require("./assets/caffe_nero_logo.png");
 
 const showInAppNotice = async (notice: { title: string; body: string }) => {
   console.info(`[Spark notice] ${notice.title}: ${notice.body}`);
@@ -160,16 +162,14 @@ const getStartupLocationPoint = async (): Promise<{ point: GeoPoint; source: Loc
 
 const userNavItems: Array<{ id: Screen; label: string }> = [
   { id: "map", label: "Map" },
-  { id: "demo", label: "Demo" },
+  { id: "graph", label: "Graph" },
   { id: "offer", label: "Offer" },
   { id: "wallet", label: "Savings" }
 ];
 
 const businessNavItems: Array<{ id: Screen; label: string }> = [
   { id: "merchant", label: "Business" },
-  { id: "demo", label: "Demo" },
-  { id: "wallet", label: "Savings" },
-  { id: "map", label: "Map" }
+  { id: "graph", label: "Graph" }
 ];
 
 const storageKeys = {
@@ -194,9 +194,9 @@ const currencyOptions: Array<{ code: CurrencyCode; symbol: string; eurRate: numb
 ];
 
 const browserAgentOptions: Array<{ mode: BrowserAgentMode; label: string }> = [
-  { mode: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro" },
-  { mode: "gemini-3.0-flash-preview", label: "Gemini 3.0 Flash" },
-  { mode: "gemini-3.1-flash-lite-preview", label: "Gemini 3.1 Flash Lite" },
+  { mode: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  { mode: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { mode: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
   { mode: "gemma", label: "Gemma 4 private" }
 ];
 
@@ -249,7 +249,68 @@ const formatLocationLabel = (
 const ownerStorageId = (account?: Account) => account?.username || "signed-out";
 const ownerHomeKey = (ownerId: string) => `${storageKeys.homePoint}.${ownerId.replace(/[^a-z0-9_-]/gi, "_")}`;
 const ownerDataKey = (ownerId: string, name: string) => `city-wallet.${name}.${ownerId.replace(/[^a-z0-9_-]/gi, "_")}`;
+const exampleEghamBusinessAccountFor = (account: Account): Account => {
+  const baseName = account.username || "local";
+  const safeName = baseName.replace(/[^a-z0-9_-]/gi, "-").replace(/-+/g, "-").toLowerCase();
+
+  return {
+    username: `${safeName}-egham-business`,
+    email: `merchant+${safeName}@spark.local`,
+    password: "",
+    accountType: "business"
+  };
+};
+const exampleEghamMerchant: Merchant = {
+  id: "egham-caffe-nero",
+  name: "Caffè Nero Egham",
+  category: "cafe",
+  location: { latitude: 51.43108, longitude: -0.54752 },
+  address: "High Street, Egham TW20",
+  openingHours: "Google Places/opening metadata when available",
+  openStatus: "open",
+  currentInventorySignals: [
+    "Example business account for a local Caffè Nero-style merchant",
+    "Google Places metadata is used when available for open status, rating and popularity proxy",
+    "Merchant guardrails are configured for coffee and study-break periods"
+  ],
+  productHints: ["coffee", "tea", "pastry"],
+  rules: [
+    {
+      id: "merchant-rule-egham-caffe-nero",
+      merchantId: "egham-caffe-nero",
+      goal: "fill_quiet_hours",
+      maxDiscountPercent: 20,
+      eligibleProducts: ["coffee", "tea", "pastry"],
+      validWindows: ["breakfast", "lunch", "afternoon", "evening"],
+      dailyRedemptionCap: 25,
+      brandTone: "cozy",
+      forbiddenClaims: ["free", "guaranteed health benefit", "unlimited"],
+      autoApproveWithinRules: true,
+      triggerConditions: ["nearby_users", "time_window", "preference_match", "quiet_demand"],
+      audiencePreferences: ["student study break", "quick lunch", "warm drinks"],
+      source: "merchant"
+    }
+  ]
+};
 const homeRadiusM = 90;
+const simulatedStepMeters = 100;
+type TravelDirection = "north" | "south" | "east" | "west";
+
+const travelPointFromDirection = (point: GeoPoint, direction: TravelDirection, distanceM = simulatedStepMeters): GeoPoint => {
+  const latDelta = distanceM / 111_320;
+  const lonDelta = distanceM / (111_320 * Math.max(0.2, Math.cos((point.latitude * Math.PI) / 180)));
+
+  if (direction === "north") {
+    return { latitude: point.latitude + latDelta, longitude: point.longitude };
+  }
+  if (direction === "south") {
+    return { latitude: point.latitude - latDelta, longitude: point.longitude };
+  }
+  if (direction === "east") {
+    return { latitude: point.latitude, longitude: point.longitude + lonDelta };
+  }
+  return { latitude: point.latitude, longitude: point.longitude - lonDelta };
+};
 
 const themes = {
   light: {
@@ -334,12 +395,13 @@ export default function App() {
   const [travelStatus, setTravelStatus] = useState("Simulation off. Real GPS is used as the starting point.");
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [graphPaused, setGraphPaused] = useState(false);
-  const [browserAgentMode, setBrowserAgentMode] = useState<BrowserAgentMode>("gemini-3.1-pro-preview");
+  const [browserAgentMode, setBrowserAgentMode] = useState<BrowserAgentMode>("gemini-2.5-pro");
   const [currency, setCurrency] = useState<CurrencyCode>("EUR");
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [graphResetComplete, setGraphResetComplete] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [mapScrollLocked, setMapScrollLocked] = useState(false);
+  const [graphScrollLocked, setGraphScrollLocked] = useState(false);
   const [locationRetryToken, setLocationRetryToken] = useState(0);
   const [showSplash, setShowSplash] = useState(true);
   const [error, setError] = useState<string | undefined>();
@@ -349,6 +411,7 @@ export default function App() {
   const lastLocationAlert = useRef<string | undefined>(undefined);
   const livePipelineInFlight = useRef(false);
   const lastPipelinePoint = useRef<GeoPoint | undefined>(undefined);
+  const simulatedTravelTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   const isExpoGo = Constants.appOwnership === "expo";
@@ -362,6 +425,11 @@ export default function App() {
   const themeKit = useMemo(() => ({ theme, styles }), [theme, styles]);
   const ownerId = ownerStorageId(account);
   const isAtHome = Boolean(userPoint && homePoint && distanceMeters(userPoint, homePoint) <= homeRadiusM);
+
+  const clearSimulatedTravelAnimation = () => {
+    simulatedTravelTimers.current.forEach((timer) => clearTimeout(timer));
+    simulatedTravelTimers.current = [];
+  };
 
   const fetchWalletUserForSession = async () => {
     try {
@@ -436,7 +504,7 @@ export default function App() {
         setAnalytics(undefined);
         setAgentStatus(
           selectedMerchant
-            ? `Spark used live data near ${selectedMerchant.name}, but no verified merchant campaign rules are active there. It will not invent a fake offer.`
+            ? `Spark used live data near ${selectedMerchant.name}. Add or enable a merchant campaign rule to generate an offer here.`
             : "Spark used live location data, but no verified nearby merchant is in range yet."
         );
         return;
@@ -599,8 +667,15 @@ export default function App() {
       if (storedTheme === "light" || storedTheme === "dark") {
         setThemeMode(storedTheme);
       }
-      if (storedBrowserAgentMode === "gemini") {
-        setBrowserAgentMode("gemini-3.1-pro-preview");
+      if (
+        storedBrowserAgentMode === "gemini" ||
+        storedBrowserAgentMode === "gemini-3.1-pro-preview"
+      ) {
+        setBrowserAgentMode("gemini-2.5-pro");
+      } else if (storedBrowserAgentMode === "gemini-3.0-flash-preview") {
+        setBrowserAgentMode("gemini-2.5-flash");
+      } else if (storedBrowserAgentMode === "gemini-3.1-flash-lite-preview") {
+        setBrowserAgentMode("gemini-2.0-flash");
       } else if (browserAgentOptions.some((option) => option.mode === storedBrowserAgentMode)) {
         setBrowserAgentMode(storedBrowserAgentMode as BrowserAgentMode);
       }
@@ -787,7 +862,7 @@ export default function App() {
         setTravelStatus(
           graphPaused
             ? "Real GPS active. Private graph use is paused, so Spark did not read or write the saved Home waypoint."
-            : "Real GPS active. Current location is saved as a device-local Home waypoint, so standing still here will not trigger Spark."
+            : "Real GPS active. Current location is saved as a device-local Home waypoint; standing-still prompts are paused here."
         );
         await loadPipelineForPoint(
           point,
@@ -868,6 +943,18 @@ export default function App() {
   }, [graphPaused, localGraph]);
 
   useEffect(() => {
+    if (!preferencesLoaded || !account || businessAccount) {
+      return;
+    }
+
+    const seededBusinessAccount = exampleEghamBusinessAccountFor(account);
+    setBusinessAccount(seededBusinessAccount);
+    AsyncStorage.setItem(storageKeys.businessAccount, JSON.stringify(seededBusinessAccount)).catch((caught) => {
+      setError(caught instanceof Error ? caught.message : "Could not create the example Egham business profile.");
+    });
+  }, [account, businessAccount, preferencesLoaded]);
+
+  useEffect(() => {
     if (isAtHome) {
       return;
     }
@@ -911,7 +998,7 @@ export default function App() {
   }, [context, isAtHome, merchant, offer]);
 
   useEffect(() => {
-    const businessAllowedScreens: Screen[] = ["merchant", "demo", "wallet", "map", "profile", "graph", "routine", "offer", "qr"];
+    const businessAllowedScreens: Screen[] = ["merchant", "wallet", "map", "profile", "graph", "routine", "offer", "qr"];
 
     if (account?.accountType === "business" && !businessAllowedScreens.includes(screen)) {
       setScreen("merchant");
@@ -1085,9 +1172,20 @@ export default function App() {
     setProfileMenuOpen(false);
     setError(undefined);
 
-    const targetAccount = targetType === "business" ? businessAccount : customerAccount;
+    if (account?.accountType === targetType) {
+      setScreen(targetType === "business" ? "merchant" : "map");
+      return;
+    }
+
+    const targetAccount = targetType === "business"
+      ? businessAccount
+      : customerAccount || (account?.accountType === "user" ? account : undefined);
     if (targetAccount) {
       await AsyncStorage.setItem(storageKeys.account, JSON.stringify(targetAccount));
+      if (targetType === "user") {
+        await AsyncStorage.setItem(storageKeys.customerAccount, JSON.stringify(targetAccount));
+        setCustomerAccount(targetAccount);
+      }
       setAccount(targetAccount);
       setAuthForm({
         username: targetAccount.username,
@@ -1220,7 +1318,7 @@ export default function App() {
       return;
     }
     if (graphPaused) {
-      setRoutineStatus("Private graph use is paused. Spark will not search routine memory until you resume graph use.");
+      setRoutineStatus("Private graph use is paused. Resume graph use before searching routine memory.");
       return;
     }
 
@@ -1234,7 +1332,7 @@ export default function App() {
     const dealInsight = await discoverDealInsight(intent, context, browserAgentMode, browserSkills);
     await learnBrowserSkillFromDeal(ownerId, intent, context, dealInsight);
     if (!merchant?.rules.length) {
-      setRoutineStatus("No verified merchant rules were found near your real location. Spark will not invent a fallback merchant.");
+      setRoutineStatus("No active merchant campaign rules were found near your current location.");
       return;
     }
     const offerMerchant = merchant;
@@ -1281,7 +1379,7 @@ export default function App() {
       const dealInsight = await discoverDealInsight(intent, context, browserAgentMode, browserSkills);
       await learnBrowserSkillFromDeal(ownerId, intent, context, dealInsight);
       if (!merchant?.rules.length) {
-        setManualPromptStatus("No verified merchant rules were found near your real location. Spark will not invent a fallback merchant.");
+        setManualPromptStatus("No active merchant campaign rules were found near your current location.");
         return;
       }
       const offerMerchant = merchant;
@@ -1304,6 +1402,7 @@ export default function App() {
 
   const simulateTravelToPoint = async (point: GeoPoint) => {
     try {
+      clearSimulatedTravelAnimation();
       setUserPoint(point);
       setLocationSource(simulatedTravelEnabled ? "simulated" : "map");
       setTravelStatus(
@@ -1319,6 +1418,42 @@ export default function App() {
       );
     } catch (caught) {
       setLiveSetupError(caught instanceof Error ? caught.message : "Map movement could not refresh live context.");
+    }
+  };
+
+  const simulateDirectionalTravel = (direction: TravelDirection) => {
+    const start = userPoint || cityWalletConfigs.egham.defaultPoint;
+    if (!start) {
+      setLiveSetupError("Choose Egham or enable GPS before using directional simulation.");
+      return;
+    }
+
+    clearSimulatedTravelAnimation();
+    setSimulatedTravelEnabled(true);
+    const target = travelPointFromDirection(start, direction);
+    const speedKmh = Math.max(0.5, Number(simulatedTravelSpeedKmh) || 4);
+    const realDurationMs = (simulatedStepMeters / ((speedKmh * 1000) / 3600)) * 1000;
+    const durationMs = Math.max(1200, Math.min(20_000, realDurationMs));
+    const steps = Math.max(8, Math.min(40, Math.round(durationMs / 350)));
+
+    setLocationSource("simulated");
+    setTravelStatus(
+      `Moving ${simulatedStepMeters}m ${direction} at ${speedKmh} km/h. Preview animation lasts ${Math.round(durationMs / 1000)}s; real travel time would be ${Math.round(realDurationMs / 1000)}s.`
+    );
+
+    for (let step = 1; step <= steps; step += 1) {
+      const timer = setTimeout(() => {
+        const progress = step / steps;
+        const nextPoint = {
+          latitude: start.latitude + (target.latitude - start.latitude) * progress,
+          longitude: start.longitude + (target.longitude - start.longitude) * progress
+        };
+        setUserPoint(nextPoint);
+        if (step === steps) {
+          void simulateTravelToPoint(target);
+        }
+      }, Math.round((durationMs / steps) * step));
+      simulatedTravelTimers.current.push(timer);
     }
   };
 
@@ -1403,6 +1538,7 @@ export default function App() {
   }
 
   const activeNavItems = account.accountType === "business" ? businessNavItems : userNavItems;
+  const businessMerchant = account.accountType === "business" ? merchant || exampleEghamMerchant : merchant;
 
   return (
     <ThemeContext.Provider value={themeKit}>
@@ -1410,7 +1546,7 @@ export default function App() {
       <StatusBar barStyle={themeMode === "dark" ? "light-content" : "dark-content"} />
       <View style={styles.appHeader}>
         <View style={styles.brandRow}>
-          <AppLogoMark width={230} />
+          <AppLogoMark width={270} />
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
@@ -1458,7 +1594,7 @@ export default function App() {
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={styles.content} scrollEnabled={!mapScrollLocked}>
+      <ScrollView contentContainerStyle={styles.content} scrollEnabled={!mapScrollLocked && !graphScrollLocked}>
         {error && <EmptyState title="Account setup required" body={error} />}
 
         {screen === "map" && (
@@ -1488,12 +1624,17 @@ export default function App() {
             onChangeManualPrompt={setManualPrompt}
             onChangeManualPromptMode={setManualPromptMode}
             onOpenSimulatedTravelControls={() => setSimulatedTravelExpanded((current) => !current)}
+            onOpenGraph={() => setScreen("graph")}
             onOpenOffer={() => setScreen("offer")}
             onDismissOffer={dismissOffer}
             onMapInteractionChange={setMapScrollLocked}
             onSearchManualPrompt={searchFromManualPrompt}
+            onDirectionalTravel={simulateDirectionalTravel}
             onSimulatedTravelPoint={simulateTravelToPoint}
             onToggleSimulatedTravel={(enabled) => {
+              if (!enabled) {
+                clearSimulatedTravelAnimation();
+              }
               setSimulatedTravelEnabled(enabled);
               if (!enabled) {
                 setLocationSource(undefined);
@@ -1510,51 +1651,29 @@ export default function App() {
         {screen === "map" && liveSetupError && (
           <EmptyState
             title="Live deal setup required"
-            body={`${liveSetupError} Spark will not invent weather, event, merchant, or demand signals; fix the connector/configuration and retry. Profile, settings, map movement, and business tools still work.`}
+            body={`${liveSetupError} Fix the connector/configuration and retry. Profile, settings, map movement, and business tools still work.`}
           />
         )}
 
         {screen === "map" && !context && !liveSetupError && <Text style={styles.loading}>Loading live city context...</Text>}
 
-        {screen === "demo" && (
-          <DemoJourneyScreen
-            accountType={account.accountType}
-            agentStatus={agentStatus}
-            analytics={analytics}
-            connectorHealth={connectorHealth}
-            context={context}
-            liveSetupError={liveSetupError}
-            merchant={merchant}
-            offer={offer}
-            token={token}
-            onAcceptOffer={acceptOffer}
-            onOpenMap={() => setScreen("map")}
-            onOpenMerchant={() => setScreen("merchant")}
-            onOpenOffer={() => setScreen("offer")}
-            onRedeemOffer={redeemOffer}
-          />
-        )}
-
-        {screen === "graph" && localGraph && (
+        {screen === "graph" && (
           <KnowledgeGraphScreen
-            graph={localGraph}
+            graph={localGraph || privacyPausedGraph}
             activeEdgeIndex={traversalIndex}
             intent={localIntent}
             graphPaused={graphPaused}
             onPauseGraph={pauseGraph}
             onExportGraph={async () => {
-              setLocalGraph(await exportKnowledgeGraph(localGraph));
+              setLocalGraph(await exportKnowledgeGraph(localGraph || privacyPausedGraph));
             }}
             onDeleteGraph={async () => {
               await deleteKnowledgeGraph();
               await AsyncStorage.removeItem(graphStorageKeyForOwner(ownerId));
               setLocalGraph({ nodes: [], edges: [] });
             }}
+            onCanvasInteractionChange={setGraphScrollLocked}
           />
-        )}
-
-        {screen === "graph" && !localGraph && !error && (
-          <Text style={styles.loading}>Loading private knowledge graph...</Text>
         )}
 
         {screen === "routine" && (
@@ -1618,25 +1737,29 @@ export default function App() {
           />
         )}
 
-        {screen === "merchant" && merchant && (
+        {screen === "merchant" && businessMerchant && (
           <MerchantScreen
             analytics={analytics}
             activeOffer={offer}
+            context={context}
             eventIntelligence={eventIntelligence}
             eventScanResult={eventScanResult}
-            merchant={merchant}
+            merchant={businessMerchant}
             onSaveRule={async (rule) => {
-              const savedRule = await createMerchantRule(merchant.id, rule);
-              setMerchant({ ...merchant, rules: [savedRule, ...merchant.rules.filter((item) => item.id !== savedRule.id)] });
+              const savedRule = await createMerchantRule(businessMerchant.id, rule);
+              setMerchant({ ...businessMerchant, rules: [savedRule, ...businessMerchant.rules.filter((item) => item.id !== savedRule.id)] });
             }}
             onSaveEventIntelligence={async (patch) => {
-              const saved = await saveBusinessEventIntelligence(merchant.id, patch);
+              const saved = await saveBusinessEventIntelligence(businessMerchant.id, patch);
               setEventIntelligence(saved);
             }}
             onScanEvents={async () => {
-              const result = await scanBusinessEvents(merchant, merchant.rules[0]);
+              const [result] = await Promise.all([
+                scanBusinessEvents(businessMerchant, businessMerchant.rules[0]),
+                new Promise((resolve) => setTimeout(resolve, 900))
+              ]);
               setEventScanResult(result);
-              setEventIntelligence(await fetchBusinessEventIntelligence(merchant.id));
+              setEventIntelligence(await fetchBusinessEventIntelligence(businessMerchant.id));
               return result;
             }}
           />
@@ -1673,10 +1796,12 @@ function MapScreen({
   onChangeManualPrompt,
   onChangeManualPromptMode,
   onOpenSimulatedTravelControls,
+  onOpenGraph,
   onOpenOffer,
   onDismissOffer,
   onMapInteractionChange,
   onSearchManualPrompt,
+  onDirectionalTravel,
   onSimulatedTravelPoint,
   onToggleSimulatedTravel
 }: {
@@ -1705,10 +1830,12 @@ function MapScreen({
   onChangeManualPrompt: (prompt: string) => void;
   onChangeManualPromptMode: (mode: "text" | "voice") => void;
   onOpenSimulatedTravelControls: () => void;
+  onOpenGraph: () => void;
   onOpenOffer: () => void;
   onDismissOffer: () => void;
   onMapInteractionChange: (isInteracting: boolean) => void;
   onSearchManualPrompt: () => void;
+  onDirectionalTravel: (direction: TravelDirection) => void;
   onSimulatedTravelPoint: (point: GeoPoint) => void;
   onToggleSimulatedTravel: (enabled: boolean) => void;
 }) {
@@ -1866,7 +1993,7 @@ function MapScreen({
         <Text style={styles.signalPill}>{manualPromptStatus}</Text>
         {isAtHome && (
           <Text style={styles.caption}>
-            You are at the device-local Home waypoint. Spark will save account data locally but will not trigger standing-still prompts here.
+            You are at the device-local Home waypoint. Spark saves account data locally and pauses standing-still prompts here.
           </Text>
         )}
       </View>
@@ -1962,13 +2089,40 @@ function MapScreen({
               value={simulatedTravelSpeedKmh}
               onChangeText={(value) => onChangeSimulatedTravelSpeed(value.replace(/[^0-9.]/g, ""))}
             />
-            <Text style={styles.caption}>Speed is a labelled demo assumption for movement context; Spark still uses the selected map point and live connectors.</Text>
+            <View style={styles.directionPad}>
+              <TouchableOpacity style={[styles.directionButton, styles.directionButtonNorth]} onPress={() => onDirectionalTravel("north")}>
+                <Text style={styles.directionButtonText}>N</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.directionButton, styles.directionButtonWest]} onPress={() => onDirectionalTravel("west")}>
+                <Text style={styles.directionButtonText}>W</Text>
+              </TouchableOpacity>
+              <View style={styles.directionCenter}>
+                <Text style={styles.directionCenterText}>100m</Text>
+              </View>
+              <TouchableOpacity style={[styles.directionButton, styles.directionButtonEast]} onPress={() => onDirectionalTravel("east")}>
+                <Text style={styles.directionButtonText}>E</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.directionButton, styles.directionButtonSouth]} onPress={() => onDirectionalTravel("south")}>
+                <Text style={styles.directionButtonText}>S</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.caption}>Arrow controls move the simulated user 100m and animate the marker based on travel speed before refreshing live context.</Text>
             <Text style={styles.caption}>{travelStatus}</Text>
           </View>
         )}
       </View>
 
-      {localGraph && <MapKnowledgeGraphPanel graph={localGraph} activeEdgeIndex={traversalIndex} />}
+      {localGraph ? (
+        <MapKnowledgeGraphPanel graph={localGraph} activeEdgeIndex={traversalIndex} onOpenGraph={onOpenGraph} />
+      ) : (
+        <View style={styles.graphEntryCard}>
+          <Text style={styles.sectionTitle}>Knowledge Graph</Text>
+          <Text style={styles.caption}>Local memory will appear here once Spark has live context or offer outcomes to connect.</Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={onOpenGraph}>
+            <Text style={styles.primaryButtonText}>Open advanced graph</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <TouchableOpacity style={[styles.primaryButton, !offer && styles.buttonDisabled]} disabled={!offer} onPress={onOpenOffer}>
         <Text style={styles.primaryButtonText}>{offer ? "Open current offer" : "No verified offer yet"}</Text>
@@ -2149,10 +2303,12 @@ function SparkMapAgent({ message }: { message: string }) {
 
 function MapKnowledgeGraphPanel({
   graph,
-  activeEdgeIndex
+  activeEdgeIndex,
+  onOpenGraph
 }: {
   graph: LocalKnowledgeGraph;
   activeEdgeIndex: number;
+  onOpenGraph: () => void;
 }) {
   const { styles, theme } = useThemeKit();
   const activeEdge = graph.edges[activeEdgeIndex % Math.max(graph.edges.length, 1)];
@@ -2175,7 +2331,7 @@ function MapKnowledgeGraphPanel({
   return (
     <View style={styles.mapGraphPanel}>
       <View style={styles.sectionHeaderRow}>
-        <Text style={styles.mapGraphTitle}>Full knowledge graph</Text>
+        <Text style={styles.mapGraphTitle}>Mini graph preview</Text>
         <Text style={styles.mapGraphCount}>{graph.nodes.length} nodes · {graph.edges.length} edges</Text>
       </View>
       <View style={styles.mapGraphVisual}>
@@ -2220,9 +2376,12 @@ function MapKnowledgeGraphPanel({
       </View>
       <Text numberOfLines={1} style={styles.mapGraphEdgeText}>
         {activeEdge && fromNode && toNode
-          ? `Spark traversing: ${fromNode.label} -> ${toNode.label}`
-          : "Graph shows only data stored on this device (no demo fixtures). Move or add calendar events to grow it."}
+          ? `Preview edge: ${fromNode.label} -> ${toNode.label}`
+          : "Open the Graph tab for the draggable infinite canvas."}
       </Text>
+      <TouchableOpacity style={styles.secondaryButton} onPress={onOpenGraph}>
+        <Text style={styles.secondaryButtonText}>Open advanced graph</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -2311,6 +2470,9 @@ function ProfileMenu({
         <TouchableOpacity style={styles.menuButton} onPress={() => onNavigate("routine")}>
           <Text style={styles.menuButtonText}>Routine</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.menuButton} onPress={() => onNavigate("graph")}>
+          <Text style={styles.menuButtonText}>Graph</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.menuButton} onPress={() => onNavigate("wallet")}>
           <Text style={styles.menuButtonText}>Savings</Text>
         </TouchableOpacity>
@@ -2374,7 +2536,7 @@ function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-function DemoJourneyScreen({
+function SubmissionReadinessScreen({
   accountType,
   agentStatus,
   analytics,
@@ -2415,17 +2577,17 @@ function DemoJourneyScreen({
     liveSetupError ||
     (!context ? "Live context has not loaded yet." : undefined) ||
     (!merchant ? "No real nearby merchant is currently ranked inside the geofence." : undefined) ||
-    (!merchantRule ? "No merchant-supplied or labelled demo campaign rule is active for the ranked merchant." : undefined) ||
-    (!offer ? "No generated offer is available yet. Spark will not show a static fallback offer." : undefined);
+    (!merchantRule ? "No merchant-supplied campaign rule is active for the ranked merchant." : undefined) ||
+    (!offer ? "No generated offer is available yet." : undefined);
   const activeConnectors = connectorHealth.filter((connector) => connector.status !== "not_configured");
   const configNeededConnectorCount = connectorHealth.length - activeConnectors.length;
-  const demoConnectorText = connectorHealth
-    .filter((connector) => connector.status !== "not_configured" && /demo/i.test(`${connector.name} ${connector.detail}`))
+  const testingConnectorText = connectorHealth
+    .filter((connector) => connector.status !== "not_configured" && /testing|local/i.test(`${connector.name} ${connector.detail}`))
     .map((connector) => `${connector.name}: ${connector.detail}`);
   const liveOrDeviceSignals = context?.sourceEvidence.filter((evidence) => evidence.status === "live" || evidence.status === "device") || [];
-  const demoSignalCount = context?.sourceEvidence.filter((evidence) => evidence.status === "demo").length || 0;
+  const testingSignalCount = context?.sourceEvidence.filter((evidence) => evidence.status !== "live" && evidence.status !== "device" && evidence.status !== "not_configured").length || 0;
   const configNeededSignalCount = context?.sourceEvidence.filter((evidence) => evidence.status === "not_configured").length || 0;
-  const sourceStatusSummary = (["live", "device", "demo", "not_configured"] as ContextState["sourceEvidence"][number]["status"][])
+  const sourceStatusSummary = (["live", "device", "not_configured"] as ContextState["sourceEvidence"][number]["status"][])
     .map((status) => ({
       status,
       count: context?.sourceEvidence.filter((evidence) => evidence.status === status).length || 0
@@ -2447,7 +2609,7 @@ function DemoJourneyScreen({
       title: "01 Context sensing",
       status: liveOrDeviceSignals.length >= 2 ? "ready" : "config needed",
       body: context
-        ? `${liveOrDeviceSignals.length} live/device source(s), ${demoSignalCount} labelled demo source(s), ${configNeededSignalCount} config-needed source(s). ${context.compositeState || "Composite state pending."}`
+        ? `${liveOrDeviceSignals.length} live/device source(s), ${testingSignalCount} local testing source(s), ${configNeededSignalCount} config-needed source(s). ${context.compositeState || "Composite state pending."}`
         : "Waiting for GPS, weather, OSM merchant, event and demand evidence."
     },
     {
@@ -2466,7 +2628,7 @@ function DemoJourneyScreen({
       title: "Merchant side",
       status: merchantRule ? "ready" : "config needed",
       body: merchantRule
-        ? `${merchantRule.source === "demo" ? "Labelled demo" : "Merchant"} rule: ${merchantRule.goal.replaceAll("_", " ")} up to ${merchantRule.maxDiscountPercent}%, cap ${merchantRule.dailyRedemptionCap}.`
+        ? `${merchantRule.source === "merchant" ? "Merchant" : "Testing"} rule: ${merchantRule.goal.replaceAll("_", " ")} up to ${merchantRule.maxDiscountPercent}%, cap ${merchantRule.dailyRedemptionCap}.`
         : "Open the merchant dashboard to add guardrails before Spark can generate an offer."
     },
     {
@@ -2476,10 +2638,10 @@ function DemoJourneyScreen({
     },
     {
       title: "Realness audit",
-      status: demoConnectorText.length ? "labelled demo" : "live/config",
-      body: demoConnectorText.length
-        ? "Every demo connector is named below; missing infrastructure remains config-needed instead of silently inventing data."
-        : "No demo connector is reporting as enabled; unavailable services stay visible as config-needed."
+      status: testingConnectorText.length ? "testing source" : "live/config",
+      body: testingConnectorText.length
+        ? "Every local testing source is named below; missing infrastructure remains clearly marked as config-needed."
+        : "No local testing source is reporting as enabled; unavailable services stay visible as config-needed."
     }
   ];
 
@@ -2524,7 +2686,7 @@ function DemoJourneyScreen({
       <View style={styles.card}>
         <View style={styles.sectionHeaderRow}>
           <View style={styles.listTextWrap}>
-            <Text style={styles.sectionTitle}>Hackathon Demo Readiness</Text>
+            <Text style={styles.sectionTitle}>Hackathon Readiness</Text>
             <Text style={styles.caption}>
               End-to-end loop from context detection to generated offer, QR/token redemption and merchant analytics.
             </Text>
@@ -2535,7 +2697,7 @@ function DemoJourneyScreen({
         {blocker ? (
           <Text style={styles.muted}>Current blocker: {blocker}</Text>
         ) : (
-          <Text style={styles.successText}>The full live/demo-labelled redemption loop is ready to show.</Text>
+          <Text style={styles.successText}>The full live redemption loop is ready to show.</Text>
         )}
         <View style={styles.row}>
           <TouchableOpacity style={styles.secondaryButtonFlex} onPress={onOpenMap}>
@@ -2599,7 +2761,7 @@ function DemoJourneyScreen({
           ))
         ) : (
           <Text style={styles.muted}>
-            Source labels appear after live context loads. Missing credentials are shown as unavailable or config-needed, not invented.
+            Source labels appear after live context loads. Missing credentials are shown as unavailable or config-needed.
           </Text>
         )}
       </View>
@@ -2639,7 +2801,7 @@ function DemoJourneyScreen({
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Merchant Readiness</Text>
         <Metric label="Merchant" value={merchant?.name || "No ranked merchant"} />
-        <Metric label="Rule source" value={merchantRule?.source === "demo" ? "labelled demo connector" : merchantRule ? "merchant supplied" : "config needed"} />
+        <Metric label="Rule source" value={merchantRule?.source && merchantRule.source !== "merchant" ? "testing connector" : merchantRule ? "merchant supplied" : "config needed"} />
         <Metric label="Rule guardrail" value={merchantRule ? `${merchantRule.goal.replaceAll("_", " ")} up to ${merchantRule.maxDiscountPercent}%` : "No active rule"} />
         <Metric label="Accept rate" value={`${Math.round((analytics?.acceptRate ?? 0) * 100)}%`} />
         <TouchableOpacity style={styles.secondaryButton} onPress={onOpenMerchant}>
@@ -2652,10 +2814,10 @@ function DemoJourneyScreen({
         <Text style={styles.bullet}>- Active/configured connectors visible: {activeConnectors.length}; config-needed connectors: {configNeededConnectorCount}</Text>
         <Text style={styles.bullet}>- Private graph, preferences, routine and precise movement history stay local.</Text>
         <Text style={styles.bullet}>- Cloud/Hermes/Gemini receives only abstract intent plus public context and merchant facts.</Text>
-        {demoConnectorText.length ? (
-          demoConnectorText.map((item) => <Text key={item} style={styles.bullet}>- Demo-labelled: {item}</Text>)
+        {testingConnectorText.length ? (
+          testingConnectorText.map((item) => <Text key={item} style={styles.bullet}>- Testing source: {item}</Text>)
         ) : (
-          <Text style={styles.bullet}>- No demo connector is currently reporting as enabled.</Text>
+          <Text style={styles.bullet}>- No local testing connector is currently reporting as enabled.</Text>
         )}
       </View>
     </>
@@ -2860,7 +3022,7 @@ function ProfileScreen({
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={styles.caption}>USD/GBP use static demo conversion rates for display only; checkout proof remains amount-in-cents from the generated offer.</Text>
+            <Text style={styles.caption}>USD/GBP use static display conversion rates; checkout proof remains amount-in-cents from the generated offer.</Text>
           </View>
           <View style={styles.settingBlock}>
             <Text style={styles.ruleLine}>Browser agent model</Text>
@@ -2889,7 +3051,7 @@ function ProfileScreen({
           <Text style={styles.bullet}>- Local only: private graph, routine memory, browser skills, raw preferences.</Text>
           <Text style={styles.bullet}>- Live grounding: {Object.values(activeCityConfig.signalSources).join("; ")}.</Text>
           <Text style={styles.bullet}>- Cloud: Hermes/Gemini receives abstract intent plus public merchant/context facts, not raw movement history.</Text>
-          <Text style={styles.bullet}>- Demo: merchant campaign rules and Payone density are labelled demo connectors until production credentials are connected.</Text>
+          <Text style={styles.bullet}>- Merchant campaign rules and demand sources stay labelled until production credentials are connected.</Text>
           <TouchableOpacity style={styles.secondaryButton} onPress={() => onPauseGraph(!graphPaused)}>
             <Text style={styles.secondaryButtonText}>{graphPaused ? "Resume private graph use" : "Pause private graph use"}</Text>
           </TouchableOpacity>
@@ -3274,7 +3436,7 @@ function MapSurface({
       ? (
         <View style={styles.mapSetupCard}>
           <Text style={styles.mapSetupTitle}>Real GPS required</Text>
-          <Text style={styles.mapSetupText}>Enable precise location. Spark will not show a fake map position.</Text>
+          <Text style={styles.mapSetupText}>Enable precise location to show your live map position.</Text>
           <TouchableOpacity style={styles.mapSetupButton} onPress={() => Linking.openSettings()}>
             <Text style={styles.mapSetupButtonText}>Open location settings</Text>
           </TouchableOpacity>
@@ -3732,13 +3894,6 @@ const businessTriggerOptions: Array<{ id: NonNullable<MerchantRule["triggerCondi
 ];
 
 const preferenceOptions = ["warm drinks", "quick lunch", "books", "gifts", "quiet seating", "fitness"];
-const eventScanCadenceOptions: Array<{ id: BusinessEventScanCadence; label: string }> = [
-  { id: "manual", label: "Manual" },
-  { id: "daily", label: "Daily" },
-  { id: "twice_daily", label: "Twice daily" },
-  { id: "weekly", label: "Weekly" }
-];
-
 const toggleListValue = <T extends string>(values: T[] | undefined, value: T) =>
   values?.includes(value) ? values.filter((item) => item !== value) : [...(values || []), value];
 
@@ -3761,6 +3916,7 @@ const merchantRuleDraftFor = (merchant: Merchant): MerchantRule => ({
 function MerchantScreen({
   analytics,
   activeOffer,
+  context,
   eventIntelligence,
   eventScanResult,
   merchant,
@@ -3770,6 +3926,7 @@ function MerchantScreen({
 }: {
   analytics?: MerchantAnalytics;
   activeOffer?: GeneratedOffer;
+  context?: ContextState;
   eventIntelligence?: BusinessEventIntelligenceSettings;
   eventScanResult?: BusinessEventScanResult;
   merchant: Merchant;
@@ -3785,7 +3942,6 @@ function MerchantScreen({
 }) {
   const { styles } = useThemeKit();
   const rule = useMemo(() => merchant.rules[0] || merchantRuleDraftFor(merchant), [merchant]);
-  const hasSavedRule = Boolean(merchant.rules[0]);
   const withBusinessDefaults = (value: MerchantRule): MerchantRule => ({
     ...value,
     triggerConditions: value.triggerConditions || ["quiet_demand", "nearby_users", "preference_match"],
@@ -3796,6 +3952,9 @@ function MerchantScreen({
   const [eventStatus, setEventStatus] = useState<string | undefined>();
   const [savedMessage, setSavedMessage] = useState<string | undefined>();
   const [merchantError, setMerchantError] = useState<string | undefined>();
+  const [radiusM, setRadiusM] = useState(250);
+  const [sparkSummary, setSparkSummary] = useState("Press refresh for Spark's merchant summary.");
+  const [pendingAiRule, setPendingAiRule] = useState<MerchantRule | undefined>();
   const eventSettings = eventIntelligence || {
     merchantId: merchant.id,
     mode: "manual" as const,
@@ -3813,6 +3972,43 @@ function MerchantScreen({
     : eventScanResult
       ? "live adapter"
       : "not scanned";
+  const merchantDemand = context?.signals.find(
+    (signal): signal is DemandSignal => signal.category === "demand" && "merchantId" in signal && signal.merchantId === merchant.id
+  );
+  const demandPercent = merchantDemand ? Math.round(merchantDemand.quietnessScore * 100) : undefined;
+  const googleSignals = merchant.currentInventorySignals.filter((signal) => /google/i.test(signal));
+  const localEvents = eventScanResult?.events || context?.signals.filter((signal) => signal.category === "event") || [];
+  const aiRecommendedRate = Math.max(
+    5,
+    Math.min(
+      draftRule.maxDiscountPercent || 20,
+      typeof demandPercent === "number" && demandPercent < 45 ? draftRule.maxDiscountPercent : Math.max(8, Math.round((draftRule.maxDiscountPercent || 20) * 0.65))
+    )
+  );
+  const recommendationReasons = [
+    typeof demandPercent === "number" ? `Google/local demand proxy is at ${demandPercent}% of baseline.` : "Google demand proxy is still loading.",
+    merchant.openStatus ? `Store status is ${merchant.openStatus}.` : "Opening status is not available yet.",
+    localEvents.length ? `${localEvents.length} upcoming local event signal(s) are available.` : "No upcoming local event signal is currently active.",
+    `Current radius is ${radiusM}m.`
+  ];
+  const buildSparkBusinessSummary = () => {
+    const nextRule: MerchantRule = {
+      ...draftRule,
+      maxDiscountPercent: aiRecommendedRate,
+      triggerConditions: [...new Set<NonNullable<MerchantRule["triggerConditions"]>[number]>([
+        ...(draftRule.triggerConditions || []),
+        "quiet_demand",
+        "nearby_users",
+        "time_window"
+      ])],
+      audiencePreferences: [...new Set([...(draftRule.audiencePreferences || []), "coffee", "quick lunch", "quiet seating"])]
+    };
+    const summary = `Spark update for ${merchant.name}. ${recommendationReasons.join(" ")} I recommend a ${aiRecommendedRate}% maximum offer rate inside ${radiusM} metres, targeting nearby users and quiet-demand moments.`;
+    setPendingAiRule(nextRule);
+    setSparkSummary(summary);
+    Speech.stop();
+    Speech.speak(summary, { language: "en-GB", pitch: 1.02, rate: 0.9 });
+  };
   const ruleGuardrailError =
     draftRule.maxDiscountPercent <= 0
       ? "Campaign max discount must be above 0%."
@@ -3828,23 +4024,149 @@ function MerchantScreen({
 
   return (
     <>
+      <View style={styles.businessHeroCard}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.caffeNeroLogo}>
+            <Image source={caffeNeroLogo} style={styles.caffeNeroLogoImage} resizeMode="contain" />
+          </View>
+          <View style={styles.listTextWrap}>
+            <Text style={styles.sectionTitle}>{merchant.name}</Text>
+            <Text style={styles.caption}>{merchant.address}</Text>
+            <Text style={styles.statusBadge}>{merchant.openStatus || "unknown"}</Text>
+          </View>
+        </View>
+        <Text style={styles.caption}>Business control centre. Customer wallet navigation is hidden in merchant mode.</Text>
+      </View>
+
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>{merchant.name}</Text>
-        <Text style={styles.caption}>Merchant rule interface</Text>
-        {!hasSavedRule && (
-          <Text style={styles.muted}>
-            No merchant-supplied campaign rule is saved yet. Fill this in to create real supply-side guardrails.
-          </Text>
+        <Text style={styles.sectionTitle}>Local Reach Map</Text>
+        <Text style={styles.caption}>Adjust the catchment radius. The circle is shown around the merchant location.</Text>
+        <View style={styles.businessMap}>
+          <MapView
+            style={StyleSheet.absoluteFill}
+            provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+            initialRegion={{
+              latitude: merchant.location.latitude,
+              longitude: merchant.location.longitude,
+              latitudeDelta: 0.012,
+              longitudeDelta: 0.012
+            }}
+          >
+            <Circle
+              center={merchant.location}
+              radius={radiusM}
+              strokeColor="rgba(121,36,47,0.88)"
+              fillColor="rgba(121,36,47,0.18)"
+              strokeWidth={2}
+            />
+            <Marker coordinate={merchant.location} title={merchant.name} description={`${radiusM}m campaign radius`} />
+          </MapView>
+        </View>
+        <Text style={styles.ruleLine}>Campaign radius: {radiusM}m</Text>
+        <View style={styles.businessChipRow}>
+          {[100, 250, 500, 750].map((radius) => (
+            <TouchableOpacity
+              key={radius}
+              style={[styles.ruleChip, radiusM === radius && styles.ruleChipActive]}
+              onPress={() => setRadiusM(radius)}
+            >
+              <Text style={[styles.ruleChipText, radiusM === radius && styles.ruleChipTextActive]}>{radius}m</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Live Business Dashboard</Text>
+        <View style={styles.metricGrid}>
+          <Metric label="Busyness proxy" value={typeof demandPercent === "number" ? `${demandPercent}%` : "loading"} />
+          <Metric label="Open status" value={merchant.openStatus || "unknown"} />
+          <Metric label="Radius" value={`${radiusM}m`} />
+          <Metric label="Events" value={localEvents.length} />
+          <Metric label="Accept rate" value={`${Math.round((analytics?.acceptRate ?? 0) * 100)}%`} />
+          <Metric label="Redemptions" value={analytics?.redemptions ?? 0} />
+        </View>
+        {googleSignals.length ? (
+          googleSignals.slice(0, 4).map((signal) => <Text key={signal} style={styles.bullet}>- {signal}</Text>)
+        ) : (
+          <Text style={styles.muted}>Google Places metadata will appear here after live context loads.</Text>
         )}
-        <Text style={styles.ruleLine}>Goal: {rule.goal.replaceAll("_", " ")}</Text>
-        <Text style={styles.ruleLine}>Max discount: {rule.maxDiscountPercent}%</Text>
-        <Text style={styles.ruleLine}>Eligible products: {rule.eligibleProducts.join(", ")}</Text>
-        <Text style={styles.ruleLine}>Valid windows: {rule.validWindows.join(", ")}</Text>
-        <Text style={styles.ruleLine}>Source: {rule.source === "demo" ? "Demo connector" : hasSavedRule ? "Merchant supplied" : "Draft only"}</Text>
-        <Text style={styles.ruleLine}>Triggers: {(rule.triggerConditions || []).join(", ") || "Not set"}</Text>
-        <Text style={styles.ruleLine}>Audience: {(rule.audiencePreferences || []).join(", ") || "All nearby users"}</Text>
-        <Text style={styles.ruleLine}>Daily cap: {rule.dailyRedemptionCap}</Text>
-        <Text style={styles.ruleLine}>Auto approval: {rule.autoApproveWithinRules ? "within rules" : "manual"}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Spark Merchant Agent</Text>
+        <Text style={styles.caption}>{sparkSummary}</Text>
+        <View style={styles.row}>
+          <TouchableOpacity
+            style={styles.primaryButtonFlex}
+            onPress={async () => {
+              setScanBusy(true);
+              try {
+                await onScanEvents();
+              } catch {
+                // Recommendation still works from current local signals.
+              } finally {
+                setScanBusy(false);
+                buildSparkBusinessSummary();
+              }
+            }}
+          >
+            <Text style={styles.primaryButtonText}>{scanBusy ? "Refreshing..." : "Refresh Spark summary"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.secondaryButton, !pendingAiRule && styles.buttonDisabled]}
+            disabled={!pendingAiRule}
+            onPress={async () => {
+              if (!pendingAiRule) {
+                return;
+              }
+              await onSaveRule(pendingAiRule);
+              setDraftRule(pendingAiRule);
+              setSavedMessage("Spark recommendation applied to campaign settings.");
+            }}
+          >
+            <Text style={styles.secondaryButtonText}>Apply Spark settings</Text>
+          </TouchableOpacity>
+        </View>
+        {recommendationReasons.map((reason) => <Text key={reason} style={styles.bullet}>- {reason}</Text>)}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Upcoming Local Events</Text>
+        <TouchableOpacity
+          style={[styles.secondaryButton, scanBusy && styles.buttonDisabled]}
+          disabled={scanBusy}
+          onPress={async () => {
+            setScanBusy(true);
+            setEventStatus("Spark is searching local event signals...");
+            try {
+              await onScanEvents();
+              setEventStatus("Local event signals refreshed.");
+            } catch (caught) {
+              setEventStatus(caught instanceof Error ? caught.message : "Event refresh failed.");
+            } finally {
+              setScanBusy(false);
+            }
+          }}
+        >
+          <Text style={styles.secondaryButtonText}>Refresh events with Spark</Text>
+        </TouchableOpacity>
+        {localEvents.length ? (
+          localEvents.slice(0, 5).map((event) => (
+            <View key={`${event.title}-${event.startsAt}`} style={styles.rulePreview}>
+              <Text style={styles.ruleLine}>{event.title}</Text>
+              <Text style={styles.caption}>{new Date(event.startsAt).toLocaleString()} · {event.expectedDemandImpact} impact</Text>
+              {event.sourceUrl && (
+                <TouchableOpacity onPress={() => Linking.openURL(event.sourceUrl!)}>
+                  <Text style={styles.linkText}>Open event source</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))
+        ) : (
+          <Text style={styles.muted}>No upcoming local events loaded yet. Press refresh to search the local event adapter.</Text>
+        )}
+        {eventStatus && <Text style={styles.successText}>{eventStatus}</Text>}
       </View>
 
       <View style={styles.card}>
@@ -3875,29 +4197,6 @@ function MerchantScreen({
             </Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.ruleLine}>Scan frequency</Text>
-        <View style={styles.businessChipRow}>
-          {eventScanCadenceOptions.map((option) => {
-            const active = eventSettings.scanCadence === option.id;
-            return (
-              <TouchableOpacity
-                key={option.id}
-                style={[styles.ruleChip, active && styles.ruleChipActive]}
-                onPress={async () => {
-                  try {
-                    await onSaveEventIntelligence({ scanCadence: option.id });
-                    setMerchantError(undefined);
-                    setEventStatus(`Event scan cadence set to ${option.label}.`);
-                  } catch (caught) {
-                    setMerchantError(caught instanceof Error ? caught.message : "Could not update event scan cadence.");
-                  }
-                }}
-              >
-                <Text style={[styles.ruleChipText, active && styles.ruleChipTextActive]}>{option.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
         <View style={styles.rulePreview}>
           <Text style={styles.ruleLine}>Offer engine rate: {offerEngineRate}%</Text>
           <Text style={styles.caption}>
@@ -3905,78 +4204,6 @@ function MerchantScreen({
               ? `Active event adjustment from ${activeEventAdjustment.eventTitle || "live event intelligence"} is driving the next generated offer.`
               : "Manual merchant rate is driving the next generated offer, bounded by the campaign max discount guardrail."}
           </Text>
-        </View>
-        <View style={styles.eventRateGrid}>
-          <View style={styles.eventRateBox}>
-            <Text style={styles.caption}>Manual rate</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Manual %"
-              placeholderTextColor="#8A8A8A"
-              keyboardType="numeric"
-              value={String(eventSettings.manualDiscountPercent)}
-              onChangeText={(text) => {
-                const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
-                setDraftRule({ ...draftRule, maxDiscountPercent: nextRate });
-                if (nextRate <= 0) {
-                  setMerchantError("Manual offer rate must be above 0%.");
-                  return;
-                }
-                void onSaveEventIntelligence({ manualDiscountPercent: nextRate })
-                  .then(() => setMerchantError(undefined))
-                  .catch((caught) => {
-                    setMerchantError(caught instanceof Error ? caught.message : "Could not save manual rate.");
-                  });
-              }}
-            />
-          </View>
-          <View style={styles.eventRateBox}>
-            <Text style={styles.caption}>Auto bounds</Text>
-            <View style={styles.row}>
-              <TextInput
-                style={styles.inputFlex}
-                placeholder="Min %"
-                placeholderTextColor="#8A8A8A"
-                keyboardType="numeric"
-                value={String(eventSettings.minAutoDiscountPercent)}
-                onChangeText={(text) => {
-                  const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
-                  if (nextRate > eventSettings.maxAutoDiscountPercent) {
-                    setMerchantError("Minimum auto rate cannot be above the maximum auto rate.");
-                    return;
-                  }
-                  void onSaveEventIntelligence({ minAutoDiscountPercent: nextRate })
-                    .then(() => setMerchantError(undefined))
-                    .catch((caught) => {
-                      setMerchantError(caught instanceof Error ? caught.message : "Could not save minimum auto rate.");
-                    });
-                }}
-              />
-              <TextInput
-                style={styles.inputFlex}
-                placeholder="Max %"
-                placeholderTextColor="#8A8A8A"
-                keyboardType="numeric"
-                value={String(eventSettings.maxAutoDiscountPercent)}
-                onChangeText={(text) => {
-                  const nextRate = Number(text.replace(/[^0-9]/g, "")) || 0;
-                  if (nextRate <= 0) {
-                    setMerchantError("Maximum auto rate must be above 0%.");
-                    return;
-                  }
-                  if (nextRate < eventSettings.minAutoDiscountPercent) {
-                    setMerchantError("Maximum auto rate cannot be below the minimum auto rate.");
-                    return;
-                  }
-                  void onSaveEventIntelligence({ maxAutoDiscountPercent: nextRate })
-                    .then(() => setMerchantError(undefined))
-                    .catch((caught) => {
-                      setMerchantError(caught instanceof Error ? caught.message : "Could not save maximum auto rate.");
-                    });
-                }}
-              />
-            </View>
-          </View>
         </View>
         <TouchableOpacity
           style={[styles.primaryButton, scanBusy && styles.buttonDisabled]}
@@ -3988,7 +4215,7 @@ function MerchantScreen({
               const result = await onScanEvents();
               setEventStatus(
                 result.sourceUrl.startsWith("not_configured://")
-                  ? "Event scan complete: city adapter config needed, so no events were invented."
+                  ? "Event scan complete: city adapter config is needed for this location."
                   : "Live event scan complete."
               );
             } catch (caught) {
@@ -3999,26 +4226,6 @@ function MerchantScreen({
           }}
         >
           <Text style={styles.primaryButtonText}>{scanBusy ? "Scanning..." : "Scan local events now"}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.secondaryButton, ruleGuardrailError && styles.buttonDisabled]}
-          disabled={Boolean(ruleGuardrailError)}
-          onPress={async () => {
-            if (ruleGuardrailError) {
-              setMerchantError(ruleGuardrailError);
-              return;
-            }
-            try {
-              await onSaveEventIntelligence({ manualDiscountPercent: draftRule.maxDiscountPercent });
-              await onSaveRule({ ...draftRule, maxDiscountPercent: draftRule.maxDiscountPercent });
-              setMerchantError(undefined);
-              setSavedMessage(`Manual offer rate set to ${draftRule.maxDiscountPercent}%.`);
-            } catch (caught) {
-              setMerchantError(caught instanceof Error ? caught.message : "Could not apply manual rate.");
-            }
-          }}
-        >
-          <Text style={styles.secondaryButtonText}>Apply manual rate to campaign</Text>
         </TouchableOpacity>
         {eventStatus && <Text style={styles.successText}>{eventStatus}</Text>}
         {merchantError && <Text style={styles.errorText}>{merchantError}</Text>}
@@ -4035,7 +4242,7 @@ function MerchantScreen({
             {!eventScanResult.events.length && (
               <Text style={styles.muted}>
                 {eventSourceConfigNeeded
-                  ? "No city event adapter is configured for this merchant location; Spark keeps the merchant rate instead of inventing events."
+                  ? "No city event adapter is configured for this merchant location; Spark keeps the merchant rate."
                   : "No live events were returned by the configured adapter for the next 7 days."}
               </Text>
             )}
@@ -4043,19 +4250,16 @@ function MerchantScreen({
               <Text key={reason} style={styles.bullet}>- {reason}</Text>
             ))}
             {eventScanResult.events.slice(0, 3).map((event) => (
-              <Text key={`${event.title}-${event.startsAt}`} style={styles.caption}>
-                {event.title} · {new Date(event.startsAt).toLocaleDateString()} · {event.expectedDemandImpact} impact
-              </Text>
-            ))}
-          </View>
-        )}
-        {eventSettings.scheduledAdjustments.length > 0 && (
-          <View style={styles.rulePreview}>
-            <Text style={styles.ruleLine}>Scheduled event-based rates</Text>
-            {eventSettings.scheduledAdjustments.slice(0, 3).map((adjustment) => (
-              <Text key={adjustment.id} style={styles.caption}>
-                {adjustment.discountPercent}% · {adjustment.status} · {adjustment.eventTitle || "local event"} until {new Date(adjustment.endsAt).toLocaleDateString()}
-              </Text>
+              <View key={`${event.title}-${event.startsAt}`} style={styles.rulePreview}>
+                <Text style={styles.caption}>
+                  {event.title} · {new Date(event.startsAt).toLocaleDateString()} · {event.expectedDemandImpact} impact
+                </Text>
+                {event.sourceUrl && (
+                  <TouchableOpacity onPress={() => Linking.openURL(event.sourceUrl!)}>
+                    <Text style={styles.linkText}>Open event source</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             ))}
           </View>
         )}
@@ -4214,55 +4418,53 @@ function MerchantScreen({
           Funnel basis: impressions are generated offers, accepts are issued checkout tokens, declines are aggregate dismisses, and redemptions are validated merchant scans.
         </Text>
         <Text style={styles.caption}>
-          Lift basis: {analytics?.quietHourLiftBasis?.replaceAll("_", " ") || "not measured"}. Spark will not invent post-campaign lift without a Payone baseline.
+          Lift basis: {analytics?.quietHourLiftBasis?.replaceAll("_", " ") || "not measured"}. Post-campaign lift needs a Payone baseline.
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Privacy Boundary</Text>
-        <Text style={styles.bullet}>- Local: {aiStackValidation.localModel.requested}</Text>
-        <Text style={styles.bullet}>- Runtime: {aiStackValidation.localModel.mvpRuntime} ({aiStackValidation.localModel.status.replaceAll("_", " ")})</Text>
-        <Text style={styles.bullet}>- Cloud: {aiStackValidation.cloudAgent.requested}</Text>
-        <Text style={styles.bullet}>- Hermes: {aiStackValidation.cloudAgent.browserLayer} ({aiStackValidation.cloudAgent.status.replaceAll("_", " ")})</Text>
-        <Text style={styles.bullet}>- Outbound data: {aiStackValidation.cloudAgent.outboundData.join(", ")}</Text>
-      </View>
     </>
   );
 }
 
-const graphWorld = { width: 1500, height: 1040 };
+const graphWorld = { width: 2400, height: 1600 };
 type GraphClusterId = "index" | "live" | "places" | "routine" | "preferences" | "offers";
 
-const graphClusterMeta: Record<GraphClusterId, { label: string; body: string; center: { x: number; y: number } }> = {
+const graphClusterMeta: Record<GraphClusterId, { label: string; body: string; color: string; center: { x: number; y: number } }> = {
   index: {
     label: "Index",
     body: "Entry point. Spark chooses which cluster matters now.",
-    center: { x: 245, y: 180 }
+    color: "#F43F5E",
+    center: { x: 360, y: 260 }
   },
   live: {
     label: "Live Context",
     body: "Weather, time, map-selected area and current situation.",
-    center: { x: 760, y: 165 }
+    color: "#EC4899",
+    center: { x: 1220, y: 250 }
   },
   places: {
     label: "Places",
     body: "Nearby real merchants, home and known locations.",
-    center: { x: 1220, y: 300 }
+    color: "#14B8A6",
+    center: { x: 1940, y: 470 }
   },
   routine: {
     label: "Routine",
     body: "Calendar and repeat movement signals.",
-    center: { x: 350, y: 760 }
+    color: "#3B82F6",
+    center: { x: 520, y: 1210 }
   },
   preferences: {
     label: "Preferences",
     body: "Local-only habits and preference clues.",
-    center: { x: 805, y: 715 }
+    color: "#8B5CF6",
+    center: { x: 1240, y: 1110 }
   },
   offers: {
     label: "Offers",
     body: "Accepted, ignored and generated wallet moments.",
-    center: { x: 1220, y: 805 }
+    color: "#F97316",
+    center: { x: 1950, y: 1260 }
   }
 };
 
@@ -4325,7 +4527,8 @@ function KnowledgeGraphScreen({
   graphPaused,
   onPauseGraph,
   onExportGraph,
-  onDeleteGraph
+  onDeleteGraph,
+  onCanvasInteractionChange
 }: {
   graph: LocalKnowledgeGraph;
   activeEdgeIndex: number;
@@ -4334,6 +4537,7 @@ function KnowledgeGraphScreen({
   onPauseGraph: (paused: boolean) => void | Promise<void>;
   onExportGraph: () => void | Promise<void>;
   onDeleteGraph: () => void | Promise<void>;
+  onCanvasInteractionChange: (active: boolean) => void;
 }) {
   const { styles, theme } = useThemeKit();
   const activeEdge = graph.edges[activeEdgeIndex % Math.max(graph.edges.length, 1)];
@@ -4344,8 +4548,12 @@ function KnowledgeGraphScreen({
   const [selectedCluster, setSelectedCluster] = useState<GraphClusterId>(agentCluster);
   const [scale, setScale] = useState(0.58);
   const [translate, setTranslate] = useState({ x: -90, y: -35 });
+  const [nodeOffsets, setNodeOffsets] = useState<Record<string, { x: number; y: number }>>({});
+  const [isGraphFullscreen, setIsGraphFullscreen] = useState(false);
   const [privacyStatus, setPrivacyStatus] = useState("Local graph controls are ready.");
   const panStart = useRef(translate);
+  const nodeDragStart = useRef<Record<string, { x: number; y: number }>>({});
+  const nodeDragged = useRef<Record<string, boolean>>({});
   const selectedEdges = selectedNode
     ? graph.edges.filter((edge) => edge.from === selectedNode.id || edge.to === selectedNode.id)
     : [];
@@ -4440,12 +4648,20 @@ function KnowledgeGraphScreen({
       });
     });
 
+    Object.entries(nodeOffsets).forEach(([nodeId, position]) => {
+      if (map.has(nodeId)) {
+        map.set(nodeId, position);
+      }
+    });
+
     return map;
-  }, [graph.nodes]);
+  }, [graph.nodes, nodeOffsets]);
   const panResponder = useMemo(
     () => PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4,
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 2 || Math.abs(gesture.dy) > 2,
       onPanResponderGrant: () => {
+        onCanvasInteractionChange(true);
         panStart.current = translate;
       },
       onPanResponderMove: (_, gesture) => {
@@ -4453,45 +4669,137 @@ function KnowledgeGraphScreen({
           x: panStart.current.x + gesture.dx,
           y: panStart.current.y + gesture.dy
         });
+      },
+      onPanResponderRelease: () => {
+        onCanvasInteractionChange(false);
+      },
+      onPanResponderTerminate: () => {
+        onCanvasInteractionChange(false);
       }
     }),
-    [translate]
+    [onCanvasInteractionChange, translate]
   );
+  const nodePanResponders = useMemo(() => {
+    const responders = new Map<string, ReturnType<typeof PanResponder.create>>();
+
+    graph.nodes.forEach((node) => {
+      responders.set(
+        node.id,
+        PanResponder.create({
+          onStartShouldSetPanResponder: () => true,
+          onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 2 || Math.abs(gesture.dy) > 2,
+          onPanResponderGrant: () => {
+            onCanvasInteractionChange(true);
+            const start = nodePositions.get(node.id);
+            if (!start) {
+              return;
+            }
+            nodeDragStart.current[node.id] = start;
+            nodeDragged.current[node.id] = false;
+            setSelectedNodeId(node.id);
+            setSelectedCluster(graphClusterForNode(node));
+          },
+          onPanResponderMove: (_, gesture) => {
+            const start = nodeDragStart.current[node.id];
+            if (!start) {
+              return;
+            }
+            if (Math.abs(gesture.dx) > 2 || Math.abs(gesture.dy) > 2) {
+              nodeDragged.current[node.id] = true;
+            }
+            const next = {
+              x: Math.max(42, Math.min(graphWorld.width - 42, start.x + gesture.dx / Math.max(scale, 0.1))),
+              y: Math.max(42, Math.min(graphWorld.height - 42, start.y + gesture.dy / Math.max(scale, 0.1)))
+            };
+            setNodeOffsets((current) => ({
+              ...current,
+              [node.id]: next
+            }));
+          },
+          onPanResponderRelease: () => {
+            onCanvasInteractionChange(false);
+            setSelectedNodeId(node.id);
+            setSelectedCluster(graphClusterForNode(node));
+            setPrivacyStatus(
+              nodeDragged.current[node.id]
+                ? `Moved ${node.label} on the local canvas.`
+                : `Selected ${node.label}.`
+            );
+          },
+          onPanResponderTerminate: () => {
+            onCanvasInteractionChange(false);
+            delete nodeDragged.current[node.id];
+          }
+        })
+      );
+    });
+
+    return responders;
+  }, [graph.nodes, nodePositions, onCanvasInteractionChange, scale]);
   const zoom = (delta: number) => setScale((current) => Math.max(0.42, Math.min(1.45, current + delta)));
-  const focusCluster = (clusterId: GraphClusterId) => {
+  const focusClusterAtScale = (clusterId: GraphClusterId, activeScale = scale) => {
     const center = graphClusterMeta[clusterId].center;
     setSelectedCluster(clusterId);
     setTranslate({
-      x: 180 - center.x * scale,
-      y: 230 - center.y * scale
+      x: (isGraphFullscreen ? 310 : 180) - center.x * activeScale,
+      y: (isGraphFullscreen ? 360 : 230) - center.y * activeScale
     });
   };
+  const focusCluster = (clusterId: GraphClusterId) => focusClusterAtScale(clusterId);
   const resetView = () => {
-    setScale(0.58);
-    setTranslate({ x: -90, y: -35 });
+    const nextScale = isGraphFullscreen ? 0.72 : 0.58;
+    setScale(nextScale);
+    setTranslate(isGraphFullscreen ? { x: 40, y: 30 } : { x: -90, y: -35 });
     setSelectedCluster(agentCluster);
   };
+  const resetNodeLayout = () => {
+    setNodeOffsets({});
+    setPrivacyStatus("Node layout reset to clustered graph positions.");
+  };
+  const selectedClusterMeta = graphClusterMeta[selectedCluster];
+  const selectedClusterNodes = graph.nodes.filter((node) => graphClusterForNode(node) === selectedCluster);
   const agentClusterMeta = graphClusterMeta[agentCluster];
   const activeFromNode = graph.nodes.find((node) => node.id === activeEdge?.from);
   const activeToNode = graph.nodes.find((node) => node.id === activeEdge?.to);
+  const graphMemoryUsable = !graphPaused && graph.nodes.length > 1 && graph.edges.length > 0;
+  const graphMemoryEvidence = [
+    graphMemoryUsable
+      ? `Spark has ${graph.nodes.length} persisted local nodes and ${graph.edges.length} persisted local edges available.`
+      : "Spark does not have enough local graph memory yet; move around, generate offers, sync calendar, or ask Spark manually to grow it.",
+    activeEdge && activeFromNode && activeToNode
+      ? `Current traversed edge: ${activeFromNode.label} -> ${activeToNode.label} (${activeEdge.relation.replaceAll("_", " ")}).`
+      : "No traversed edge is active yet.",
+    intent ? `Local intent was inferred with graph context: ${intent.abstractSignal}.` : "Local intent is waiting for the next context pipeline run.",
+    graphPaused ? "Private graph use is paused, so Spark ignores graph memory for deal discovery." : "Private graph use is active."
+  ];
   const routeEvidence = [
-    graphPaused ? "Graph pause is active: stored nodes are visible for inspection, but Spark will not reuse them for deal discovery." : undefined,
+    graphPaused ? "Graph pause is active: stored nodes are visible for inspection, while deal discovery ignores graph memory." : undefined,
     intent ? `Abstract intent: ${intent.abstractSignal}` : undefined,
     activeEdge ? `Active relation: ${activeEdge.relation.replaceAll("_", " ")}` : undefined,
     `Focused cluster: ${agentClusterMeta.label}`,
     `${clusterCounts[agentCluster]} nodes available in this cluster`
   ].filter(Boolean);
 
+  useEffect(() => {
+    if (isGraphFullscreen) {
+      return;
+    }
+    focusClusterAtScale(agentCluster);
+  }, [agentCluster, activeEdgeIndex, isGraphFullscreen]);
+
   return (
     <>
       <View style={styles.card}>
         <View style={styles.sectionHeaderRow}>
           <View>
-            <Text style={styles.sectionTitle}>Spark is traversing your graph</Text>
+            <Text style={styles.graphVersionBadge}>GRAPH V3 · CLUSTERS · FULLSCREEN · DRAGGABLE</Text>
+            <Text style={styles.sectionTitle}>Knowledge Graph Canvas</Text>
             <Text style={styles.caption}>
-              {graphPaused
-                ? "Graph use is paused."
-                : `Spark is routing through ${agentClusterMeta.label}: ${agentClusterMeta.body}`}
+              {graph.nodes.length
+                ? graphPaused
+                  ? "Graph use is paused, but the canvas is still available for inspection."
+                  : `Spark is routing through ${agentClusterMeta.label}: ${agentClusterMeta.body}`
+                : "The canvas is ready. Move around, sync routine data, or generate offers to grow nodes and edges."}
             </Text>
           </View>
           <View style={[styles.sparkFace, graphPaused && styles.buttonDisabled]}>
@@ -4500,6 +4808,34 @@ function KnowledgeGraphScreen({
         </View>
         <Text style={styles.statusBadge}>{graphPaused ? "paused" : "local traversal"}</Text>
         {intent && <Text style={styles.signalPill}>Intent: {intent.abstractSignal}</Text>}
+        {!graph.nodes.length && (
+          <Text style={styles.successText}>Open the Graph tab anytime: the infinite canvas, Index cluster, cluster routes, pan, zoom, and node-drag layout are available here.</Text>
+        )}
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => {
+            setIsGraphFullscreen(true);
+            setScale(0.72);
+            setTranslate({ x: 40, y: 30 });
+          }}
+        >
+          <Text style={styles.primaryButtonText}>Open fullscreen graph explorer</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.graphProofCard}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.listTextWrap}>
+            <Text style={styles.sectionTitle}>Spark Graph Memory Usage</Text>
+            <Text style={styles.caption}>
+              This panel shows whether the AI pipeline has real local graph memory available right now.
+            </Text>
+          </View>
+          <Text style={styles.statusBadge}>{graphMemoryUsable ? "using graph" : "not enough memory"}</Text>
+        </View>
+        {graphMemoryEvidence.map((item) => (
+          <Text key={item} style={styles.bullet}>- {item}</Text>
+        ))}
       </View>
 
       <View style={styles.card}>
@@ -4522,6 +4858,19 @@ function KnowledgeGraphScreen({
         <Text style={styles.caption}>
           Spark traverses local graph clusters first, then sends only the abstract intent to cloud deal discovery when allowed.
         </Text>
+        <View style={styles.businessChipRow}>
+          {graphClusterOrder.map((clusterId) => (
+            <TouchableOpacity
+              key={clusterId}
+              style={[styles.ruleChip, selectedCluster === clusterId && styles.ruleChipActive]}
+              onPress={() => focusCluster(clusterId)}
+            >
+              <Text style={[styles.ruleChipText, selectedCluster === clusterId && styles.ruleChipTextActive]}>
+                {graphClusterMeta[clusterId].label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         {clusterRouteSummary.length ? (
           clusterRouteSummary.map((route) => (
             <Text key={`${route.from}-${route.to}`} style={styles.bullet}>
@@ -4533,7 +4882,12 @@ function KnowledgeGraphScreen({
         )}
       </View>
 
-      <View style={styles.graphCanvas}>
+      <View
+        style={[styles.graphCanvas, isGraphFullscreen && styles.graphCanvasFullscreen]}
+        onTouchStart={() => onCanvasInteractionChange(true)}
+        onTouchEnd={() => onCanvasInteractionChange(false)}
+        onTouchCancel={() => onCanvasInteractionChange(false)}
+      >
         {backdropDots.map((dot) => (
           <View
             key={dot.key}
@@ -4542,20 +4896,57 @@ function KnowledgeGraphScreen({
           />
         ))}
         <View style={styles.graphToolbar}>
-          <Text style={styles.graphHint}>Clustered infinite canvas. Drag to explore, tap clusters or nodes, or follow Spark.</Text>
+          <Text style={styles.graphHint}>
+            {isGraphFullscreen
+              ? "Drag blank space to pan. Drag nodes to rearrange. Tap a cluster button to jump."
+              : `Auto-focused on ${agentClusterMeta.label}. Open fullscreen for free pan and easier controls.`}
+          </Text>
           <View style={styles.graphControlRow}>
             <TouchableOpacity style={styles.graphZoomButton} onPress={() => zoom(-0.12)}>
-              <Text style={styles.graphZoomText}>-</Text>
+              <Text style={styles.graphZoomText}>Zoom out</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.graphZoomButton} onPress={resetView}>
-              <Text style={styles.graphZoomText}>{Math.round(scale * 100)}%</Text>
+              <Text style={styles.graphZoomText}>Reset {Math.round(scale * 100)}%</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.graphZoomButton} onPress={() => focusCluster(agentCluster)}>
-              <Text style={styles.graphZoomText}>Spark</Text>
+              <Text style={styles.graphZoomText}>Follow Spark</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.graphZoomButton} onPress={resetNodeLayout}>
+              <Text style={styles.graphZoomText}>Reset layout</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.graphZoomButton}
+              onPress={() => {
+                const nextFullscreen = !isGraphFullscreen;
+                setIsGraphFullscreen(nextFullscreen);
+                if (nextFullscreen) {
+                  setScale(0.72);
+                  setTranslate({ x: 40, y: 30 });
+                } else {
+                  const nextScale = 0.58;
+                  setScale(nextScale);
+                  focusClusterAtScale(agentCluster, nextScale);
+                }
+              }}
+            >
+              <Text style={styles.graphZoomText}>{isGraphFullscreen ? "Exit fullscreen" : "Fullscreen"}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.graphZoomButton} onPress={() => zoom(0.12)}>
-              <Text style={styles.graphZoomText}>+</Text>
+              <Text style={styles.graphZoomText}>Zoom in</Text>
             </TouchableOpacity>
+          </View>
+          <View style={styles.graphControlRow}>
+            {graphClusterOrder.map((clusterId) => (
+              <TouchableOpacity
+                key={`jump-${clusterId}`}
+                style={[styles.graphZoomButton, selectedCluster === clusterId && styles.ruleChipActive]}
+                onPress={() => focusCluster(clusterId)}
+              >
+                <Text style={[styles.graphZoomText, selectedCluster === clusterId && styles.ruleChipTextActive]}>
+                  {graphClusterMeta[clusterId].label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
         <View pointerEvents="none" style={styles.graphLegend}>
@@ -4583,6 +4974,28 @@ function KnowledgeGraphScreen({
               const isSelectedCluster = selectedCluster === clusterId;
 
               return (
+                <View
+                  key={`zone-${clusterId}`}
+                  pointerEvents="none"
+                  style={[
+                    styles.graphClusterZone,
+                    {
+                      left: meta.center.x - 220,
+                      top: meta.center.y - 170,
+                      borderColor: meta.color,
+                      backgroundColor: `${meta.color}1A`
+                    },
+                    isAgentCluster && styles.graphClusterZoneActive
+                  ]}
+                />
+              );
+            })}
+            {graphClusterOrder.map((clusterId) => {
+              const meta = graphClusterMeta[clusterId];
+              const isAgentCluster = agentCluster === clusterId;
+              const isSelectedCluster = selectedCluster === clusterId;
+
+              return (
                 <TouchableOpacity
                   key={clusterId}
                   activeOpacity={0.85}
@@ -4591,7 +5004,7 @@ function KnowledgeGraphScreen({
                     {
                       left: meta.center.x - 145,
                       top: meta.center.y - 98,
-                      borderColor: isAgentCluster ? theme.primary : isSelectedCluster ? "#8B5CF6" : theme.border
+                      borderColor: isAgentCluster ? meta.color : isSelectedCluster ? "#8B5CF6" : theme.border
                     },
                     isAgentCluster && styles.graphClusterBubbleActive
                   ]}
@@ -4602,6 +5015,9 @@ function KnowledgeGraphScreen({
                   <Text style={styles.graphClusterCount}>
                     {clusterCounts[clusterId]} nodes {isAgentCluster ? "· Spark here" : ""}
                   </Text>
+                  {clusterId === "index" && (
+                    <Text style={styles.graphClusterRouteText}>Tap to route to every other cluster</Text>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -4665,10 +5081,12 @@ function KnowledgeGraphScreen({
               const isInSelectedCluster = selectedCluster === "index" || nodeCluster === selectedCluster;
               const size = Math.max(58, Math.min(96, 54 + node.weight * 34));
 
+              const panHandlers = nodePanResponders.get(node.id)?.panHandlers;
+
               return (
-                <TouchableOpacity
-                  activeOpacity={0.85}
+                <View
                   key={node.id}
+                  {...panHandlers}
                   style={[
                     styles.graphNode,
                     {
@@ -4684,20 +5102,60 @@ function KnowledgeGraphScreen({
                           ? 0.52
                           : 1
                     },
-                    (isActive || isSelected) && styles.graphNodeActive
+                    (isActive || isSelected) && styles.graphNodeActive,
+                    nodeOffsets[node.id] && styles.graphNodeMoved
                   ]}
-                  onPress={() => {
-                    setSelectedNodeId(node.id);
-                    setSelectedCluster(nodeCluster);
-                  }}
                 >
                   <Text style={styles.graphNodeType}>{graphNodeSymbol(node.type)}</Text>
                   <Text style={styles.graphNodeText} numberOfLines={2}>{node.label}</Text>
-                </TouchableOpacity>
+                </View>
               );
             })}
           </View>
         </View>
+      </View>
+
+      <View style={styles.graphDetailCard}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.listTextWrap}>
+            <Text style={styles.sectionTitle}>{selectedClusterMeta.label} Cluster</Text>
+            <Text style={styles.caption}>{selectedClusterMeta.body}</Text>
+          </View>
+          <Text style={styles.statusBadge}>{selectedClusterNodes.length} nodes</Text>
+        </View>
+        <Text style={styles.muted}>
+          {selectedCluster === "index"
+            ? "The Index cluster is the graph home. Use it to jump into Live Context, Places, Routine, Preferences, and Offers."
+            : `This cluster is connected from Index and can be rearranged by dragging its nodes on the canvas.`}
+        </Text>
+        <View style={styles.businessChipRow}>
+          {(selectedCluster === "index" ? graphClusterOrder.filter((clusterId) => clusterId !== "index") : [selectedCluster]).map((clusterId) => (
+            <TouchableOpacity
+              key={`inspector-${clusterId}`}
+              style={styles.ruleChip}
+              onPress={() => focusCluster(clusterId)}
+            >
+              <Text style={styles.ruleChipText}>
+                {selectedCluster === "index"
+                  ? `Open ${graphClusterMeta[clusterId].label}`
+                  : `${clusterCounts[clusterId]} ${graphClusterMeta[clusterId].label} nodes`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {selectedCluster !== "index" && selectedClusterNodes.slice(0, 4).map((node) => (
+          <TouchableOpacity
+            key={`cluster-node-${node.id}`}
+            style={styles.graphInspectorNode}
+            onPress={() => {
+              setSelectedNodeId(node.id);
+              setSelectedCluster(graphClusterForNode(node));
+            }}
+          >
+            <Text style={styles.ruleLine}>{node.label}</Text>
+            <Text style={styles.caption}>{node.type} · weight {node.weight.toFixed(2)}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {selectedNode && (
@@ -4753,7 +5211,7 @@ function KnowledgeGraphScreen({
             onPress={async () => {
               const nextPaused = !graphPaused;
               await onPauseGraph(nextPaused);
-              setPrivacyStatus(nextPaused ? "Private graph use is paused; Spark will not read or write local graph/home memory." : "Private graph use is active again.");
+              setPrivacyStatus(nextPaused ? "Private graph use is paused; local graph/home memory is inspection-only." : "Private graph use is active again.");
             }}
           >
             <Text style={styles.primaryButtonText}>{graphPaused ? "Resume graph" : "Pause graph"}</Text>
@@ -4837,7 +5295,7 @@ function createStyles(theme: AppTheme) {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    maxWidth: "72%",
+    maxWidth: "78%",
     flexShrink: 1
   },
   kicker: {
@@ -4877,6 +5335,7 @@ function createStyles(theme: AppTheme) {
   },
   profileButton: {
     borderRadius: 999,
+    marginTop: 8,
     padding: 3,
     backgroundColor: theme.surface,
     borderColor: theme.border,
@@ -5667,6 +6126,66 @@ function createStyles(theme: AppTheme) {
     gap: 10,
     paddingTop: 4
   },
+  directionPad: {
+    alignSelf: "center",
+    width: 178,
+    height: 178,
+    position: "relative",
+    marginVertical: 4
+  },
+  directionButton: {
+    position: "absolute",
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.primary,
+    shadowColor: theme.primary,
+    shadowOpacity: 0.24,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4
+  },
+  directionButtonNorth: {
+    top: 0,
+    left: 62
+  },
+  directionButtonWest: {
+    top: 62,
+    left: 0
+  },
+  directionButtonEast: {
+    top: 62,
+    right: 0
+  },
+  directionButtonSouth: {
+    bottom: 0,
+    left: 62
+  },
+  directionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  directionCenter: {
+    position: "absolute",
+    top: 62,
+    left: 62,
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.surfaceAlt,
+    borderColor: theme.border,
+    borderWidth: 1
+  },
+  directionCenterText: {
+    color: theme.primary,
+    fontSize: 12,
+    fontWeight: "900"
+  },
   muted: {
     color: theme.muted,
     fontSize: 14,
@@ -5681,6 +6200,43 @@ function createStyles(theme: AppTheme) {
     color: theme.text,
     fontSize: 14,
     lineHeight: 20
+  },
+  businessHeroCard: {
+    backgroundColor: theme.mode === "dark" ? "#120B10" : "#FFF8F3",
+    borderColor: theme.primary,
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 18,
+    gap: 12,
+    shadowColor: theme.primary,
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3
+  },
+  caffeNeroLogo: {
+    width: 104,
+    height: 76,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderColor: "#D6A75C",
+    borderWidth: 2,
+    overflow: "hidden",
+    padding: 8
+  },
+  caffeNeroLogoImage: {
+    width: "100%",
+    height: "100%"
+  },
+  businessMap: {
+    height: 260,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderColor: theme.border,
+    borderWidth: 1,
+    backgroundColor: theme.surfaceAlt
   },
   primaryButton: {
     backgroundColor: theme.primary,
@@ -5855,6 +6411,12 @@ function createStyles(theme: AppTheme) {
     fontWeight: "800",
     lineHeight: 20
   },
+  linkText: {
+    color: theme.primary,
+    fontSize: 13,
+    fontWeight: "900",
+    textDecorationLine: "underline"
+  },
   ruleLine: {
     color: theme.text,
     fontSize: 15,
@@ -5933,13 +6495,51 @@ function createStyles(theme: AppTheme) {
     color: "#FFFFFF"
   },
   graphCanvas: {
-    height: 560,
+    height: 680,
     borderRadius: 28,
     backgroundColor: theme.mode === "dark" ? "#070A13" : "#EEF6FF",
     borderColor: theme.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.08)",
     borderWidth: 1,
     overflow: "hidden",
     position: "relative"
+  },
+  graphCanvasFullscreen: {
+    height: 920,
+    borderRadius: 12,
+    marginHorizontal: -10
+  },
+  graphProofCard: {
+    backgroundColor: theme.mode === "dark" ? "rgba(34,20,45,0.92)" : "#FFF7ED",
+    borderColor: theme.primary,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    gap: 8,
+    shadowColor: theme.primary,
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3
+  },
+  graphEntryCard: {
+    backgroundColor: theme.mode === "dark" ? "rgba(15,23,42,0.96)" : "#EFF6FF",
+    borderColor: theme.primary,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+    gap: 10
+  },
+  graphVersionBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: theme.primary,
+    color: "#FFFFFF",
+    borderRadius: 999,
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 11,
+    fontWeight: "900",
+    marginBottom: 8
   },
   graphBackdropDot: {
     position: "absolute",
@@ -5954,9 +6554,7 @@ function createStyles(theme: AppTheme) {
     left: 10,
     right: 10,
     zIndex: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    alignItems: "stretch",
     gap: 10
   },
   graphHint: {
@@ -5967,6 +6565,7 @@ function createStyles(theme: AppTheme) {
   },
   graphControlRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 6
   },
   graphLegend: {
@@ -6002,14 +6601,16 @@ function createStyles(theme: AppTheme) {
     textTransform: "capitalize"
   },
   graphZoomButton: {
-    minWidth: 38,
-    height: 34,
+    minWidth: 78,
+    minHeight: 34,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: theme.mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.86)",
     borderColor: theme.border,
-    borderWidth: 1
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7
   },
   graphZoomText: {
     color: theme.text,
@@ -6024,6 +6625,19 @@ function createStyles(theme: AppTheme) {
     position: "absolute",
     left: 0,
     top: 0
+  },
+  graphClusterZone: {
+    position: "absolute",
+    zIndex: 0,
+    width: 440,
+    height: 340,
+    borderRadius: 52,
+    borderWidth: 1.2,
+    opacity: 0.72
+  },
+  graphClusterZoneActive: {
+    opacity: 1,
+    borderWidth: 2.4
   },
   graphClusterBubble: {
     position: "absolute",
@@ -6064,6 +6678,13 @@ function createStyles(theme: AppTheme) {
     fontWeight: "900",
     marginTop: 2
   },
+  graphClusterRouteText: {
+    color: theme.text,
+    fontSize: 10,
+    fontWeight: "900",
+    marginTop: 4,
+    opacity: 0.75
+  },
   graphSvg: {
     position: "absolute",
     zIndex: 1,
@@ -6090,6 +6711,10 @@ function createStyles(theme: AppTheme) {
     shadowOpacity: 0.45,
     shadowRadius: 18,
     elevation: 8
+  },
+  graphNodeMoved: {
+    borderColor: "#FDE68A",
+    borderWidth: 3
   },
   graphNodeText: {
     color: "#FFFFFF",
@@ -6119,6 +6744,13 @@ function createStyles(theme: AppTheme) {
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
     elevation: 2
+  },
+  graphInspectorNode: {
+    borderColor: theme.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 10,
+    backgroundColor: theme.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.025)"
   },
   sparkFace: {
     width: 48,

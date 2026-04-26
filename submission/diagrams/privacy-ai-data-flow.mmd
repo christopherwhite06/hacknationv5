@@ -1,0 +1,23 @@
+flowchart TD
+  Raw[Raw User Signals<br/>movement, routines, preferences, offer outcomes] --> LocalGraph[Device-Local Knowledge Graph]
+  LocalGraph --> Gemma[Local Gemma Runtime]
+  Gemma --> Intent[Abstract Intent]
+
+  Context[Non-Personal Context<br/>city, weather, place category, opening status, events] --> Intent
+  Intent --> Hermes[Hermes Gateway]
+  Hermes --> Gemini[Gemini Public Discovery]
+  Gemini --> Insight[Public Deal Intelligence]
+
+  Intent --> OfferEngine[Offer Generation]
+  Insight --> OfferEngine
+  MerchantRules[Merchant Rules<br/>caps, products, goals, guardrails] --> OfferEngine
+  OfferEngine --> Offer[Generated Offer]
+
+  Offer --> QR[QR Token]
+  QR --> Validate[Backend Validation]
+  Validate --> Ledger[Wallet Ledger]
+  Validate --> MerchantAnalytics[Aggregate Merchant Analytics]
+
+  LocalGraph -. not sent .-> Gemini
+  Raw -. not sent .-> Hermes
+  Raw -. not sent .-> MerchantAnalytics

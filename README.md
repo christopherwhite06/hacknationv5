@@ -1,54 +1,81 @@
-# Spark City Wallet MVP
+# Spark City Wallet
 
-An end-to-end mobile MVP for the Generative City Wallet challenge.
+Spark City Wallet is a React Native and Expo mobile app for a real-time, AI-assisted city wallet. It is designed around a simple idea: offers should be generated at the moment they are useful, using live local context, merchant rules, and privacy-preserving user intent.
 
-The app demonstrates:
+The app combines a customer wallet, a merchant control centre, Google Maps, local graph memory, Gemini-powered public web discovery, local Gemma inference, QR redemption, and aggregate merchant analytics.
 
-- A configurable context sensing layer using live weather, device location, time, local event, and Payone transaction-density signals.
-- A private on-device knowledge graph that is sent only to a local Gemma runtime.
-- A real Hermes Agent endpoint for Gemini-powered deal discovery using only non-personal intent and context.
-- Dynamically generated wallet offers with copy, discount, timing, channel, and visual metadata.
-- QR/token redemption with backend checkout validation and aggregate merchant analytics.
-- Persistent account/session onboarding, a wallet ledger, merchant campaign rules, and privacy controls for the local graph.
-- A simple financial-services-inspired interface using red primary actions, white wallet cards, and compact three-second offer facts.
-- A Google Maps interface where Spark hovers around the map, displays generated deals through a speech bubble, and speaks them aloud through local device text-to-speech.
-- A Google Calendar routine sync that cold-starts the local knowledge graph with schedule and location habits.
-- Time/location routine prompts where Spark asks for consent before Gemma searches the local graph and Hermes/Gemini finds a task-specific deal.
-- Light and dark UI modes.
-- A private knowledge graph tab where users can watch Spark traverse their graph live.
-- A profile area with avatar, account details, settings, and login/create-account forms.
-- A branded in-app splash screen using the Spark brain-wallet lightning logo mark.
+## Product Overview
 
-The app intentionally has no fake data path and no fallback cache. Missing runtime configuration is shown as a setup error.
+Spark is not a static coupon list. The customer app senses context, infers a private intent, asks an AI agent for grounded deal intelligence, and generates a time-limited wallet offer. The merchant app defines business goals and guardrails, then reviews campaign performance and local signals.
 
-## Required Environment
+Core capabilities:
 
-Set these before running the app:
+- Live context sensing from location, time, weather, Google Places metadata, local events, merchant opening status, and transaction-density adapters.
+- Google Maps customer experience with current-location display, map-driven context refresh, and Spark's floating assistant.
+- Private on-device knowledge graph for preferences, routines, places, prompts, and offer outcomes.
+- Advanced graph canvas with clusters, pan, zoom, fullscreen, draggable nodes, node inspection, and a compact map-page preview.
+- Local Gemma path for private intent handling where raw user graph data stays on device.
+- Hermes/Gemini path for public deal discovery using only abstract intent and non-personal context.
+- Generative offer engine that creates copy, discount, timing, channel, visual tone, expiry, and redemption metadata from current context and merchant rules.
+- QR/token redemption with backend proof validation, replay protection, cashback ledger updates, and aggregate merchant analytics.
+- Business mode with a merchant dashboard, Caffè Nero example account, radius map, Google Places signals, event scanning, Spark recommendations, and campaign controls.
+- Persistent accounts, sessions, wallet ledger, settings, theme selection, and local graph controls.
+
+## Architecture
+
+```text
+React Native / Expo app
+  -> Context engine
+     -> Google Maps / device location
+     -> Weather adapter
+     -> Google Places adapter
+     -> Event adapter
+     -> Transaction-density adapter
+  -> Local knowledge graph
+     -> Local Gemma runtime through Ollama
+  -> Hermes agent gateway
+     -> Gemini models for public web intelligence
+  -> City Wallet API
+     -> Accounts, merchants, rules, offers, redemptions, ledger, analytics
+```
+
+The app keeps raw habits, preference history, movement context, and graph memory local. Cloud AI calls receive abstract intent, city-level context, merchant category, public context signals, and optional public-site navigation skills.
+
+## Runtime Requirements
+
+Create a `.env` file with the required runtime values:
 
 ```bash
-EXPO_PUBLIC_CITY_WALLET_API_URL=https://your-city-wallet-api.example
-EXPO_PUBLIC_HERMES_AGENT_URL=https://your-hermes-agent-gateway.example
+EXPO_PUBLIC_CITY_WALLET_API_URL=http://10.0.2.2:3001
+EXPO_PUBLIC_HERMES_AGENT_URL=http://10.0.2.2:3001
 EXPO_PUBLIC_GEMINI_API_KEY=your-gemini-api-key
-EXPO_PUBLIC_LOCAL_GEMMA_URL=http://127.0.0.1:11434
+EXPO_PUBLIC_LOCAL_GEMMA_URL=http://10.0.2.2:11434
 EXPO_PUBLIC_LOCAL_GEMMA_MODEL=gemma4:e4b
-EXPO_PUBLIC_CITY_WALLET_USER_ID=real-user-id
+EXPO_PUBLIC_CITY_WALLET_USER_ID=city-wallet-user
 EXPO_PUBLIC_CITY_WALLET_SCENARIO=egham
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
 EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=your-google-android-oauth-client-id
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-google-web-oauth-client-id
 ```
 
-`EXPO_PUBLIC_CITY_WALLET_SCENARIO` is optional and accepts `egham`, `stuttgart`, or `gps`.
+Use `127.0.0.1` instead of `10.0.2.2` when running outside the Android emulator.
 
-Required live endpoints:
+`EXPO_PUBLIC_CITY_WALLET_SCENARIO` accepts `egham`, `stuttgart`, or `gps`. The scenario controls the starting city configuration only; live adapters still determine the available context.
 
-- `GET /users/:userId`
+## API Surface
+
+The local development API in `server/dev-api.js` exposes the same shape expected by the app:
+
 - `POST /accounts`
 - `POST /sessions`
-- `POST /integrations/google-calendar/sync`
+- `GET /users/:userId`
 - `GET /users/:userId/ledger`
+- `POST /integrations/google-calendar/sync`
 - `GET /merchants/nearby?lat=&lon=`
 - `POST /merchants/:merchantId/rules`
+- `GET /merchants/:merchantId/event-intelligence`
+- `POST /merchants/:merchantId/event-intelligence`
+- `POST /merchants/:merchantId/event-intelligence/scan`
 - `GET /events/nearby?lat=&lon=`
 - `GET /payone/transaction-density?merchantIds=`
 - `POST /offers/generate`
@@ -56,104 +83,112 @@ Required live endpoints:
 - `POST /redemptions/:tokenId/validate`
 - `GET /merchants/:merchantId/analytics`
 - `GET /connectors/health`
-- `POST /privacy/graph/export` and `DELETE /privacy/graph` reject raw graph handling because export/delete are device-only
+- `POST /hermes/tasks`
 
-Required local Gemma endpoint through Ollama:
+Local Gemma is expected through Ollama at:
 
 - `POST /api/chat`
 
-Required Hermes endpoint:
+## AI Models
 
-- `POST /tasks`
+The app currently exposes four browser-agent choices:
 
-## Run
+- Gemini 2.5 Pro
+- Gemini 2.5 Flash
+- Gemini 2.0 Flash
+- Gemma private local mode
+
+The Gemini path is routed through the Hermes endpoint. Gemma private mode calls the local Ollama runtime directly.
+
+## Run Locally
+
+Install dependencies:
 
 ```bash
 npm install
-npm run smoke:full
-npm run web
 ```
 
-For native testing, use:
-
-```bash
-npm run android
-npm run ios
-```
-
-On Windows, an Android emulator named `CityWalletPixel` is configured. To reopen the phone simulator later:
+Start the local API:
 
 ```bash
 npm run api
+```
+
+Start the app:
+
+```bash
+npm run android
+```
+
+For the configured Android emulator workflow on Windows:
+
+```bash
 npm run emulator
 npm run android:phone
 ```
 
-## Repeatable Smoke Checks
+Web and iOS entry points are also available:
 
-Run the full validation suite before demo-critical changes:
+```bash
+npm run web
+npm run ios
+```
+
+## Validation
+
+Run TypeScript validation:
+
+```bash
+npm run typecheck
+```
+
+Run the full smoke suite:
 
 ```bash
 npm run smoke:full
 ```
 
-The full smoke command runs TypeScript validation, then starts `server/dev-api.js` on isolated local ports with clearly labelled demo Payone demand and demo merchant supply enabled. It validates connector health, including adapter-ready/degraded status for public adapters that are not probed by the health route and QR proof secret configuration status, live-context coordinate validation, case-insensitive duplicate account email/username, trimmed email/username duplicates, and wrong-password rejection, merchant manual rate influence on generated offers, event-rate and auto-bound guardrails, merchant-rule guardrails, context-responsive offer theming, QR/token issue, generated-offer expiry checks, coupon-code and cashback-amount match validation, full scanned-payload validation, replay rejection, private graph export/delete API rejection, idempotent decline analytics, city/source scenarios, and aggregate merchant analytics.
-
-For a faster city/data-source audit only, run:
+Run city/source scenario checks:
 
 ```bash
 npm run smoke:scenarios
 ```
 
-This checks labelled Payone demo demand, no-demand behavior when the demo connector is disabled, Stuttgart event scoping/config-needed source labels, and rejection of event scans that do not include a real merchant location without launching the app.
+The smoke suite validates API contracts, account/session handling, connector health, live-context coordinate validation, merchant rule guardrails, event intelligence guardrails, generated-offer expiry, QR proof validation, replay rejection, decline analytics, ledger updates, and aggregate merchant analytics.
 
-For emulator inspection, use the `Demo` tab as the judge-facing checklist, then test Egham/Stuttgart/current GPS from `Map` -> `Simulate`.
+## Customer Flow
 
-For the full judge-day checklist, see `DEMO_RUNBOOK.md`.
+1. Sign in or create an account.
+2. Open the map to view the current location and nearby context.
+3. Let Spark infer a private local intent from context and graph memory.
+4. Search manually or respond to a Spark routine prompt.
+5. Review the generated offer card.
+6. Accept before expiry to issue a QR redemption token.
+7. Validate the token through merchant checkout.
+8. Review cashback and offer history in the wallet.
+9. Inspect local graph memory in the graph view.
 
-## Demo Flow
+## Merchant Flow
 
-1. Open the `Map` tab to see Google Maps and Spark's generated deal popup.
-2. Open the `Graph` tab to see the private knowledge graph and Spark's live traversal.
-3. Open the `Routine` tab to sync Google Calendar and let Spark create consent-based time/location prompts.
-4. Say yes to a Spark routine question to run local Gemma against the graph and Gemini/Hermes against the web.
-5. Open the `Offer` tab to view the dynamically generated offer card.
-6. Accept the offer before expiry to create a one-time QR token with a tamper-evident proof and no `userId` in the QR payload.
-7. Validate merchant checkout on the `Redeem` tab; the API checks the scanned QR proof before confirming cashback, and the UI blocks expired or already validated tokens.
-8. Open the `Wallet` tab to see offer history, cashback, and connector health.
-9. Open the `Profile` tab to create an account or adjust settings.
-10. Open the `Merchant` tab to edit rules, preview campaign limits, and review aggregate metrics.
+1. Switch to business mode from the profile menu.
+2. Review the merchant dashboard and local reach map.
+3. Adjust the campaign radius and offer guardrails.
+4. Refresh event intelligence for upcoming local demand signals.
+5. Ask Spark for a spoken recommendation.
+6. Apply recommended campaign settings when appropriate.
+7. Review active campaigns and aggregate performance metrics.
 
-## UX Requirements
+## Privacy
 
-- **Interaction location**: the generated offer appears as a popup over Google Maps and can also be opened as a full wallet card.
-- **Addressing style**: the offer uses generated situational framing based on the live context.
-- **First 3 seconds**: merchant, distance, product, cashback, and expiry are visible in compact facts.
-- **Ending state**: accept creates a QR token only before offer expiry, expired accept/redeem actions are blocked in the UI, redemption confirms cashback, and dismiss updates analytics without breaking the wallet flow.
-- **Closed loop**: the demo must show context detection, offer generation, display, accept or decline, simulated checkout, ledger update, and merchant analytics.
+Spark City Wallet is designed around data minimisation:
 
-## Hackathon Submission Guidance
+- Raw graph memory stays on the device.
+- Local Gemma handles private intent and graph traversal.
+- Gemini receives only abstract intent and non-personal context.
+- Merchant analytics are aggregate.
+- QR payloads avoid embedding raw user identity.
+- Graph controls allow local inspection and pausing of graph use.
 
-Strong submissions should demonstrate real context in action. Use a concrete scenario such as rain, nearby location, a quiet merchant, and low transaction volume, then show Spark generating a specific plausible offer rather than a static coupon.
+## Why It Matters
 
-The experience should be understood in three seconds. The offer card and map popup should make the merchant, product, benefit, expiry, and reason visible through clear hierarchy and compact language.
-
-The flow must stay connected from end to end: context detection, local intent, Hermes/Gemini deal discovery, generated offer, accept or decline, QR checkout, wallet ledger, and merchant analytics. A partial but connected flow is stronger than a polished isolated mockup.
-
-Do not over-index on model architecture at the expense of the interaction. The challenge is won through the customer and merchant experience, with AI supporting timing, relevance, and supply-side responsiveness.
-
-The merchant side is required, not optional. City Wallet needs supply, so merchant rule creation, discount caps, quiet-hour goals, campaign preview, and aggregate analytics are part of the core product.
-
-Weak submissions tend to show beautiful static dummy offers, ignore the merchant perspective, skip checkout/redemption, or treat privacy as an afterthought.
-
-## Why This Matters
-
-The decline of inner-city retail is a structural threat to local economies and to the regional model of savings banks embedded in those communities. Traditional loyalty programmes and static coupon books have not solved it, while global e-commerce platforms already use dynamic pricing, demand signals, and algorithmic personalization.
-
-DSV Gruppe, as part of the German Savings Banks Financial Group, sits at the intersection of Payone payments infrastructure, merchant portals such as S-Markt & Mehrwert, and regional banking relationships. That position makes it possible to build something global e-commerce cannot easily copy: an AI layer that understands local context, respects privacy by design, and helps local merchants respond to demand as quickly as a marketplace algorithm.
-
-## Privacy Boundary
-
-The local graph represents raw habits, offer history, movement, and preferences. The cloud-agent path receives only abstract intent, coarse city context, merchant category, and non-personal context signals.
-
-For GDPR, the intended posture is explicit consent, on-device inference for raw behavior, data minimization before cloud calls, user-visible graph controls, graph pause that stops local graph/home-memory reads and writes during deal discovery, device-only export/delete actions, and aggregate-only merchant analytics.
+Local merchants compete with platforms that already use dynamic demand signals, algorithmic timing, and personalised interfaces. Spark City Wallet brings that responsiveness into a privacy-conscious city wallet: merchants set goals and limits, the wallet senses the live moment, and AI creates a relevant offer only when it is useful.

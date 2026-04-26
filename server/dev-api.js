@@ -1,10 +1,23 @@
 const http = require("http");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const { URL } = require("url");
+
+const localEnvValue = (name) => {
+  try {
+    const content = fs.readFileSync(path.join(process.cwd(), ".env"), "utf8");
+    const line = content.split(/\r?\n/).find((entry) => entry.trim().startsWith(`${name}=`));
+    return line ? line.slice(line.indexOf("=") + 1).trim().replace(/^["']|["']$/g, "") : "";
+  } catch {
+    return "";
+  }
+};
 
 const port = Number(process.env.CITY_WALLET_API_PORT || 3001);
 const demoSupplyEnabled = process.env.CITY_WALLET_DEMO_SUPPLY === "enabled";
 const demoDemandEnabled = process.env.CITY_WALLET_DEMO_DEMAND === "enabled";
+const googlePlacesApiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || localEnvValue("GOOGLE_MAPS_API_KEY") || localEnvValue("EXPO_PUBLIC_GOOGLE_MAPS_API_KEY") || "";
 const royalHollowayEventsUrl = "https://www.royalholloway.ac.uk/about-us/events/";
 const royalHollowayPoint = { latitude: 51.42565, longitude: -0.56306 };
 
@@ -18,6 +31,7 @@ const accounts = new Map();
 const ledgers = new Map();
 const calendarConnections = new Map();
 const eventIntelligenceSettings = new Map();
+const googlePlaceDemandSignals = new Map();
 const merchantRuleGoals = new Set(["fill_quiet_hours", "move_surplus", "first_time_visit", "increase_repeat_visits"]);
 const merchantRuleWindows = new Set(["breakfast", "lunch", "afternoon", "evening"]);
 const merchantRuleTones = new Set(["cozy", "premium", "playful", "direct"]);
@@ -207,7 +221,7 @@ const buildEventDiscountPlan = (merchantId, settings, events) => {
     rationale: [
       reason,
       `Event starts ${new Date(topEvent.startsAt).toLocaleString("en-GB")} and is about ${Math.round(topEvent.distanceM)}m from the active area.`,
-      "Decision uses live public event data and merchant guardrails; no event data is invented."
+      "Decision uses live public event data and merchant guardrails."
     ],
     scheduledAdjustments: [
       {
@@ -330,6 +344,197 @@ const osmProductHints = (tags = {}, category) => {
   return [tags.shop || "retail item"];
 };
 
+const eghamExampleMerchants = [
+  {
+    id: "egham-campus-coffee",
+    name: "Egham Campus Coffee",
+    category: "cafe",
+    location: { latitude: 51.42592, longitude: -0.56318 },
+    address: "Royal Holloway, Egham TW20",
+    openingHours: "Mo-Su 08:00-18:00",
+    openStatus: "open",
+    currentInventorySignals: [
+      "Example Egham merchant profile for local onboarding flow",
+      "Fresh coffee batch and pastries available today",
+      "Merchant guardrails are configured for quiet study-break periods"
+    ],
+    productHints: ["coffee", "tea", "pastry"]
+  },
+  {
+    id: "egham-study-bites",
+    name: "Egham Study Bites",
+    category: "restaurant",
+    location: { latitude: 51.43128, longitude: -0.54722 },
+    address: "Egham High Street, Egham TW20",
+    openingHours: "Mo-Su 10:00-21:00",
+    openStatus: "open",
+    currentInventorySignals: [
+      "Example Egham merchant profile for local onboarding flow",
+      "Lunch bowls and study snacks available today",
+      "Merchant guardrails are configured for student lunch demand"
+    ],
+    productHints: ["lunch", "meal", "snack"]
+  },
+  {
+    id: "egham-book-break",
+    name: "Egham Book Break",
+    category: "retail",
+    location: { latitude: 51.43018, longitude: -0.54812 },
+    address: "Egham town centre, Egham TW20",
+    openingHours: "Mo-Su 09:00-18:00",
+    openStatus: "open",
+    currentInventorySignals: [
+      "Example Egham merchant profile for local onboarding flow",
+      "Notebooks and stationery available today",
+      "Merchant guardrails are configured for study supply moments"
+    ],
+    productHints: ["notebook", "stationery", "gift"]
+  }
+].map((merchant) => ({
+  ...merchant,
+  rules: [
+    {
+      id: `merchant-rule-${merchant.id}`,
+      merchantId: merchant.id,
+      goal: "fill_quiet_hours",
+      maxDiscountPercent: merchant.category === "retail" ? 12 : 20,
+      eligibleProducts: merchant.productHints,
+      validWindows: ["breakfast", "lunch", "afternoon", "evening"],
+      dailyRedemptionCap: 25,
+      brandTone: merchant.category === "retail" ? "direct" : "cozy",
+      forbiddenClaims: ["free", "guaranteed health benefit", "unlimited"],
+      autoApproveWithinRules: true,
+      triggerConditions: ["nearby_users", "time_window", "preference_match", "quiet_demand"],
+      audiencePreferences: ["student study break", "quick lunch", "warm drinks"],
+      source: "merchant"
+    }
+  ]
+}));
+
+const eghamExampleMerchantsNear = (lat, lon) => {
+  const activePoint = { latitude: Number(lat), longitude: Number(lon) };
+  return eghamExampleMerchants
+    .filter((merchant) => distanceMeters(activePoint, merchant.location) <= 1800)
+    .map((merchant) => ({
+      ...merchant,
+      currentInventorySignals: [
+        ...merchant.currentInventorySignals,
+        `Merchant is ${Math.round(distanceMeters(activePoint, merchant.location))}m from the active app location`
+      ]
+    }));
+};
+
+const googlePlaceCategory = (place = {}) => {
+  const types = place.types || [];
+  if (types.some((type) => ["cafe", "bakery"].includes(type))) {
+    return "cafe";
+  }
+  if (types.some((type) => ["restaurant", "meal_takeaway", "bar"].includes(type))) {
+    return "restaurant";
+  }
+  if (types.some((type) => ["book_store", "clothing_store", "store"].includes(type))) {
+    return "retail";
+  }
+  if (types.some((type) => ["museum", "art_gallery", "tourist_attraction"].includes(type))) {
+    return "culture";
+  }
+  return "retail";
+};
+
+const googleProductHints = (place = {}) => {
+  const types = place.types || [];
+  if (types.includes("cafe") || types.includes("bakery")) {
+    return ["coffee", "tea", "pastry"];
+  }
+  if (types.includes("restaurant") || types.includes("meal_takeaway")) {
+    return ["meal", "lunch", "snack"];
+  }
+  if (types.includes("book_store")) {
+    return ["notebook", "book", "stationery"];
+  }
+  return ["local item"];
+};
+
+const googleOpenStatus = (place = {}) => {
+  if (place.opening_hours?.open_now === true) {
+    return "open";
+  }
+  if (place.opening_hours?.open_now === false) {
+    return "closed";
+  }
+  return "unknown";
+};
+
+const googleDemandSignalForPlace = (merchantId, place = {}) => {
+  const reviewCount = Number(place.user_ratings_total || 0);
+  const rating = Number(place.rating || 0);
+  const reviewWeight = Math.min(1, Math.log10(reviewCount + 1) / 4);
+  const ratingWeight = rating > 0 ? rating / 5 : 0.6;
+  const openWeight = place.opening_hours?.open_now === false ? 0.18 : 1;
+  const demandRatio = Math.max(0.12, Math.min(0.95, (0.28 + reviewWeight * 0.5 + ratingWeight * 0.17) * openWeight));
+  const baseline = Math.max(6, Math.round(10 + reviewWeight * 38));
+
+  return {
+    category: "demand",
+    merchantId,
+    currentTransactionsPerHour: Math.max(1, Math.round(baseline * demandRatio)),
+    baselineTransactionsPerHour: baseline,
+    quietnessScore: Number(demandRatio.toFixed(2)),
+    source: "google_places"
+  };
+};
+
+const googlePlacesNearby = async (lat, lon) => {
+  if (!googlePlacesApiKey) {
+    return [];
+  }
+
+  const params = new URLSearchParams({
+    location: `${lat},${lon}`,
+    radius: "900",
+    keyword: "cafe restaurant bakery lunch bookshop",
+    key: googlePlacesApiKey
+  });
+  const response = await fetch(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Google Places ${response.status}: ${await response.text()}`);
+  }
+
+  const payload = await response.json();
+  if (payload.status && !["OK", "ZERO_RESULTS"].includes(payload.status)) {
+    throw new Error(`Google Places ${payload.status}: ${payload.error_message || "nearby search failed"}`);
+  }
+
+  return (payload.results || [])
+    .filter((place) => place.place_id && place.geometry?.location && place.name)
+    .slice(0, 12)
+    .map((place) => {
+      const id = `google-${place.place_id}`;
+      googlePlaceDemandSignals.set(id, googleDemandSignalForPlace(id, place));
+      return {
+        id,
+        name: place.name,
+        category: googlePlaceCategory(place),
+        location: {
+          latitude: Number(place.geometry.location.lat),
+          longitude: Number(place.geometry.location.lng)
+        },
+        address: place.vicinity || "Google Places nearby result",
+        openingHours: place.opening_hours ? `Google open now: ${place.opening_hours.open_now ? "yes" : "no"}` : undefined,
+        openStatus: googleOpenStatus(place),
+        currentInventorySignals: [
+          "Google Places verified nearby business",
+          place.business_status ? `Google business status: ${place.business_status}` : "",
+          Number.isFinite(Number(place.rating)) ? `Google rating: ${place.rating}` : "",
+          Number.isFinite(Number(place.user_ratings_total)) ? `Google review count: ${place.user_ratings_total}` : "",
+          place.opening_hours ? `Google open now: ${place.opening_hours.open_now ? "yes" : "no"}` : ""
+        ].filter(Boolean),
+        rules: merchantRules.get(id) || [],
+        productHints: googleProductHints(place)
+      };
+    });
+};
+
 const demoRuleForMerchant = (merchant, tags = {}) => {
   if (!demoSupplyEnabled || !merchant || merchant.openStatus === "closed") {
     return undefined;
@@ -402,8 +607,14 @@ const osmOpenStatus = (openingHours) => {
     : current >= opens || current <= closes ? "open" : "closed";
 };
 
-const nearbyMerchantsFromOsm = async (lat, lon) => {
+const nearbyMerchantsFromOsm = async (lat, lon, includeEghamExamples = false) => {
   const radiusM = 900;
+  let googleMerchants = [];
+  try {
+    googleMerchants = await googlePlacesNearby(lat, lon);
+  } catch {
+    googleMerchants = [];
+  }
   const query = `
     [out:json][timeout:12];
     (
@@ -428,7 +639,7 @@ const nearbyMerchantsFromOsm = async (lat, lon) => {
   }
 
   const payload = await response.json();
-  return (payload.elements || [])
+  const osmMerchants = (payload.elements || [])
     .filter((element) => element.tags?.name && Number.isFinite(Number(element.lat || element.center?.lat)) && Number.isFinite(Number(element.lon || element.center?.lon)))
     .map((element) => {
       const category = osmCategory(element.tags);
@@ -448,7 +659,7 @@ const nearbyMerchantsFromOsm = async (lat, lon) => {
           "OpenStreetMap verified local business",
           element.tags.opening_hours ? `OSM opening_hours: ${element.tags.opening_hours}` : "",
           element.tags.opening_hours ? `Open status from OSM opening_hours: ${osmOpenStatus(element.tags.opening_hours)}` : "Opening hours not published in OSM",
-          demoSupplyEnabled ? "Demo merchant campaign connector enabled for local supply-side testing" : "",
+          demoSupplyEnabled ? "Local merchant campaign connector enabled for supply-side testing" : "",
           element.tags.website || element.tags["contact:website"] || ""
         ].filter(Boolean),
         rules: merchantRules.get(id) || [],
@@ -460,6 +671,42 @@ const nearbyMerchantsFromOsm = async (lat, lon) => {
         rules: merchant.rules.length ? merchant.rules : demoRule ? [demoRule] : []
       };
     });
+  const exampleMerchants = includeEghamExamples ? eghamExampleMerchantsNear(lat, lon) : [];
+  const enrichedExampleMerchants = exampleMerchants.map((merchant) => {
+    const matchedGoogleMerchant = googleMerchants
+      .map((candidate) => ({
+        merchant: candidate,
+        distanceM: distanceMeters(merchant.location, candidate.location)
+      }))
+      .filter((candidate) => candidate.distanceM <= 350)
+      .sort((a, b) => a.distanceM - b.distanceM)[0]?.merchant;
+
+    if (!matchedGoogleMerchant) {
+      return merchant;
+    }
+
+    const googleDemand = googlePlaceDemandSignals.get(matchedGoogleMerchant.id);
+    if (googleDemand) {
+      googlePlaceDemandSignals.set(merchant.id, { ...googleDemand, merchantId: merchant.id });
+    }
+
+    return {
+      ...merchant,
+      openStatus: matchedGoogleMerchant.openStatus,
+      currentInventorySignals: [
+        ...merchant.currentInventorySignals,
+        `Google Places nearby match: ${matchedGoogleMerchant.name}`,
+        ...matchedGoogleMerchant.currentInventorySignals
+      ],
+      productHints: [...new Set([...(merchant.productHints || []), ...(matchedGoogleMerchant.productHints || [])])]
+    };
+  });
+  const existingIds = new Set([...googleMerchants, ...osmMerchants].map((merchant) => merchant.id));
+  return [
+    ...enrichedExampleMerchants.filter((merchant) => !existingIds.has(merchant.id)),
+    ...googleMerchants,
+    ...osmMerchants
+  ];
 };
 
 const calendarCategory = (summary = "") => {
@@ -575,12 +822,14 @@ const royalHollowayEvents = async (point) => {
       }
       seen.add(id);
       const daysAway = (Date.parse(startsAt) - Date.now()) / (24 * 60 * 60 * 1000);
+      const sourceUrl = new URL(match[1], royalHollowayEventsUrl).toString();
       return {
         category: "event",
         title: `Royal Holloway: ${title}`,
         startsAt,
         distanceM: Math.round(distanceMeters(point, royalHollowayPoint)),
-        expectedDemandImpact: daysAway >= 0 && daysAway <= 7 ? "medium" : "low"
+        expectedDemandImpact: daysAway >= 0 && daysAway <= 7 ? "medium" : "low",
+        sourceUrl
       };
     })
     .filter(Boolean)
@@ -902,11 +1151,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && path === "/merchants/nearby") {
       const lat = Number(url.searchParams.get("lat"));
       const lon = Number(url.searchParams.get("lon"));
+      const includeEghamExamples = url.searchParams.get("includeEghamExamples") === "1" || url.searchParams.get("includeEghamDemo") === "1";
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
         json(res, 400, { error: "lat and lon are required for real nearby business lookup." });
         return;
       }
-      json(res, 200, await nearbyMerchantsFromOsm(lat, lon));
+      json(res, 200, await nearbyMerchantsFromOsm(lat, lon, includeEghamExamples));
       return;
     }
 
@@ -938,11 +1188,16 @@ const server = http.createServer(async (req, res) => {
         json(res, 400, { error: "merchantIds are required for transaction density lookup." });
         return;
       }
-      if (!demoDemandEnabled) {
+      const googleDemandSignals = ids
+        .map((merchantId) => googlePlaceDemandSignals.get(merchantId))
+        .filter(Boolean);
+      const eghamExampleMerchantIds = ids.filter((id) => id.startsWith("egham-"));
+      if (!demoDemandEnabled && !eghamExampleMerchantIds.length && !googleDemandSignals.length) {
         json(res, 200, []);
         return;
       }
-      json(res, 200, ids.slice(0, 8).map((merchantId, index) => {
+      const densityIds = demoDemandEnabled ? ids.slice(0, 8) : eghamExampleMerchantIds.slice(0, 8);
+      const localSignals = densityIds.map((merchantId, index) => {
         const baseline = 18 + index * 3;
         const quietnessScore = index % 3 === 0 ? 0.22 : index % 3 === 1 ? 0.48 : 0.67;
         return {
@@ -953,7 +1208,8 @@ const server = http.createServer(async (req, res) => {
           quietnessScore,
           source: "payone_demo"
         };
-      }));
+      });
+      json(res, 200, [...googleDemandSignals, ...localSignals]);
       return;
     }
 
@@ -1337,20 +1593,19 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, [
         { name: "Open-Meteo weather", status: "degraded", detail: "Adapter is configured; live reachability is checked during each context build, not by this health route." },
         { name: "Google Calendar", status: calendarConnections.size ? "connected" : "not_configured", detail: calendarConnections.size ? "Routine cold-start sync is active." : "Connect Calendar to cold-start schedule habits." },
+        { name: "Google Places", status: googlePlacesApiKey ? "degraded" : "not_configured", detail: googlePlacesApiKey ? "Nearby place identity, open-now status, ratings, and review-volume popularity metadata are requested during context loading." : "Add EXPO_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY with Places API enabled." },
         { name: "Royal Holloway events", status: "degraded", detail: "Adapter-ready for active points near Egham/Royal Holloway; other cities show no event signal until their adapter is configured." },
         {
           name: "Payone density",
           status: demoDemandEnabled ? "degraded" : "not_configured",
           detail: demoDemandEnabled
-            ? "Demo transaction-density connector is enabled for company-side testing; replace with Payone credentials for production."
-            : "No Payone credentials are connected, so demand signals are not invented."
+            ? "Company-side transaction-density connector is enabled for local testing; replace with Payone credentials for production."
+            : "No Payone credentials are connected; Egham example merchants use a local transaction-density adapter for walkthroughs."
         },
         {
-          name: "Demo merchant campaigns",
-          status: demoSupplyEnabled ? "degraded" : "not_configured",
-          detail: demoSupplyEnabled
-            ? "Demo merchant rules are enabled so the end-to-end merchant supply loop can be tested locally."
-            : "No demo merchant campaign rules are enabled."
+          name: "Egham merchant onboarding",
+          status: "degraded",
+          detail: "Example Egham merchant profiles are available in the normal map, offer, and business flows for local walkthroughs."
         },
         { name: "OpenStreetMap places", status: "degraded", detail: "Adapter is configured; nearby businesses are requested from Overpass during live context loading." },
         {

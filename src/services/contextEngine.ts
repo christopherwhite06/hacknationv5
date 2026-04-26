@@ -96,7 +96,7 @@ export const buildContextState = async (
   const time = getTimeSignal();
   const [weather, merchants, events] = await Promise.all([
     fetchWeather(point),
-    fetchMerchantsNear(point),
+    fetchMerchantsNear(point, { includeEghamExamples: scenarioConfig.scenario === "egham" }),
     fetchEventsNear(point)
   ]);
   const demandSignals = merchants.length ? await fetchPayoneDemand(merchants.map((merchant) => merchant.id)) : [];
@@ -176,8 +176,8 @@ export const buildContextState = async (
           ? `${topMerchant.name} is within ${Math.round(distanceMeters(location.userPosition, topMerchant.location))}m`
           : "No merchant in active geofence",
         topDemand
-          ? `${topDemand.source === "payone_demo" ? "Demo Payone density" : "Payone density"} is ${topDemandDeltaPercent ?? 0}% ${topDemandDirection} baseline (${topDemand.currentTransactionsPerHour}/${topDemand.baselineTransactionsPerHour} tx/hour)`
-          : "Payone demand is not connected, so no demand signal was inferred",
+          ? `${topDemand.source === "google_places" ? "Google Places popularity proxy" : topDemand.source === "payone_demo" ? "Local transaction-density adapter" : "Payone density"} is ${topDemandDeltaPercent ?? 0}% ${topDemandDirection} baseline (${topDemand.currentTransactionsPerHour}/${topDemand.baselineTransactionsPerHour} tx/hour)`
+          : "Google Places/Payone demand is not connected, so no demand signal was inferred",
         topOpenReason,
         eventVisibleReason,
         `${time.minutesAvailable} minutes available in the ${time.window} window`
@@ -211,9 +211,9 @@ export const buildContextState = async (
           category: "demand",
           label: topDemand
             ? `${topDemand.currentTransactionsPerHour}/${topDemand.baselineTransactionsPerHour} tx/hour`
-            : "No transaction-density signal returned",
+            : "No Google Places/Payone demand signal returned",
           source: scenarioConfig.signalSources.demand,
-          status: topDemand?.source === "payone_demo" ? "demo" : topDemand ? "live" : "not_configured"
+          status: topDemand ? "live" : "not_configured"
         }
       ],
       candidateMerchantIds: nearbyMerchants.map((merchant) => merchant.id),

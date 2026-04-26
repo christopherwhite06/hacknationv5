@@ -49,7 +49,7 @@ export const eghamConfig: CityWalletConfig = {
     location: "Device GPS geofence adapter",
     time: "Local device clock",
     event: "Royal Holloway public events page and connected Google Calendar",
-    demand: "Payone transaction density feed or clearly-labelled local demo connector"
+    demand: "Google Places popularity/opening metadata and Payone transaction density feed"
   },
   triggerThresholds: {
     coldTemperatureC: 12,
@@ -78,7 +78,7 @@ export const stuttgartConfig: CityWalletConfig = {
   signalSources: {
     ...eghamConfig.signalSources,
     event: "Config needed: connect a Stuttgart event adapter before using event signals",
-    demand: "Payone transaction density feed or clearly-labelled local demo connector"
+    demand: "Google Places popularity/opening metadata and Payone transaction density feed"
   }
 };
 

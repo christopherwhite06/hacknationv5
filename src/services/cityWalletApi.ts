@@ -58,8 +58,10 @@ export const loginAccount = (account: { username: string; email: string; passwor
     body: JSON.stringify(account)
   });
 
-export const fetchMerchantsNear = (point: GeoPoint) =>
-  requestJson<Merchant[]>(`/merchants/nearby?${encodePoint(point)}`);
+export const fetchMerchantsNear = (point: GeoPoint, options?: { includeEghamExamples?: boolean }) =>
+  requestJson<Merchant[]>(
+    `/merchants/nearby?${encodePoint(point)}${options?.includeEghamExamples ? "&includeEghamExamples=1" : ""}`
+  );
 
 export const fetchEventsNear = (point: GeoPoint) =>
   requestJson<EventSignal[]>(`/events/nearby?${encodePoint(point)}`);

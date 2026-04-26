@@ -43,6 +43,7 @@ export interface EventSignal {
   startsAt: string;
   distanceM: number;
   expectedDemandImpact: "low" | "medium" | "high";
+  sourceUrl?: string;
 }
 
 export interface DemandSignal {
@@ -51,7 +52,7 @@ export interface DemandSignal {
   currentTransactionsPerHour: number;
   baselineTransactionsPerHour: number;
   quietnessScore: number;
-  source: "payone" | "payone_demo";
+  source: "payone" | "google_places" | "payone_demo";
 }
 
 export type ContextSignal =
@@ -251,9 +252,9 @@ export interface BrowserSkill {
 }
 
 export type BrowserAgentMode =
-  | "gemini-3.1-pro-preview"
-  | "gemini-3.0-flash-preview"
-  | "gemini-3.1-flash-lite-preview"
+  | "gemini-2.5-pro"
+  | "gemini-2.5-flash"
+  | "gemini-2.0-flash"
   | "gemma";
 
 export interface GeneratedOffer {

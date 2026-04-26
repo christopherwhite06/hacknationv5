@@ -1,0 +1,27 @@
+sequenceDiagram
+  participant C as Customer
+  participant App as Spark City Wallet
+  participant CE as Context Engine
+  participant G as Local Graph
+  participant AI as Gemma / Hermes + Gemini
+  participant API as City Wallet API
+  participant M as Merchant Checkout
+
+  C->>App: Opens map or asks Spark
+  App->>CE: Request current context
+  CE->>CE: Combine location, time, weather, places, events, demand
+  CE-->>App: Composite context + source evidence
+  App->>G: Read local graph memory
+  G-->>App: Preferences, routines, places, outcomes
+  App->>AI: Private intent locally or abstract intent to Hermes
+  AI-->>App: Grounded deal intelligence
+  App->>API: Generate offer with context, rule, and insight
+  API-->>App: Offer card with discount, expiry, reason, channel
+  C->>App: Accepts offer
+  App->>API: Issue redemption token
+  API-->>App: QR token + proof
+  C->>M: Presents QR
+  M->>API: Validate token
+  API-->>M: Validation result
+  API-->>App: Ledger and analytics update
+  App->>G: Record accepted/redeemed outcome locally

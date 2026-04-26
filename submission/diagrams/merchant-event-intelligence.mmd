@@ -1,0 +1,21 @@
+flowchart LR
+  Merchant[Merchant Dashboard] --> Radius[Local Reach Radius]
+  Merchant --> Rules[Campaign Guardrails]
+  Merchant --> EventRefresh[Refresh Local Events]
+  Merchant --> Spark[Ask Spark Recommendation]
+
+  EventRefresh --> EventAdapter[Local Event Adapter]
+  EventAdapter --> Events[Upcoming Event Evidence + Source Links]
+
+  Radius --> Context[Local Business Context]
+  Rules --> Context
+  Events --> Context
+  Places[Google Places Signals] --> Context
+  Analytics[Aggregate Performance] --> Context
+
+  Context --> Recommendation[Spark Recommendation]
+  Recommendation --> Apply[Apply Suggested Settings]
+  Apply --> UpdatedRules[Updated Campaign Settings]
+  UpdatedRules --> OfferEngine[Generated Offer Engine]
+  OfferEngine --> Campaign[Active Generated Campaign]
+  Campaign --> Analytics

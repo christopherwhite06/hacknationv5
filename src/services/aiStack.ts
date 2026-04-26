@@ -120,7 +120,7 @@ const discoverDealInsightWithGemma = async (
 export const discoverDealInsight = async (
   intent: LocalIntent,
   context: ContextState,
-  browserAgentMode: BrowserAgentMode = "gemini-3.1-pro-preview",
+  browserAgentMode: BrowserAgentMode = "gemini-2.5-pro",
   browserSkills: BrowserSkill[] = []
 ): Promise<AgentDealInsight> => {
   if (browserAgentMode === "gemma") {
@@ -128,7 +128,7 @@ export const discoverDealInsight = async (
   }
 
   const config = getRuntimeConfig();
-  const response = await fetch(`${config.hermesAgentUrl}/tasks`, {
+  const response = await fetch(`${config.hermesAgentUrl}/hermes/tasks`, {
     method: "POST",
     headers: {
       Accept: "application/json",
