@@ -3,7 +3,17 @@
 Use these rules before starting any long-running autonomous iteration for the Generative City-Wallet project.
 
 ## Primary Goal
-Keep the current working MVP as the foundation and improve it over roughly 6 hours of focused iterations. Do not restart the project, replace the architecture, or chase speculative rewrites. Build from the current app, server, data model, and UX.
+Keep the current working MVP as the foundation and improve it for a hard 6-hour wall-clock loop. Do not restart the project, replace the architecture, or chase speculative rewrites. Build from the current app, server, data model, and UX.
+
+## Hard Six-Hour Loop Contract
+- The loop must run until the physical wall-clock end time has passed.
+- At startup, calculate `loopStartedAt` and `loopEndsAt = loopStartedAt + 6 hours`.
+- Do not stop early because the initial roadmap is complete.
+- If a planned task finishes early, immediately research the brief, inspect the repo, identify the next highest-impact improvement, create fresh todos, and continue.
+- Continue research -> todo creation -> implementation -> validation -> commit -> push cycles until `loopEndsAt` has passed.
+- After `loopEndsAt` has passed, finish the current in-progress task cleanly, validate it, commit/push if appropriate, then stop. Do not start a new cycle after the end time.
+- Each cycle should include some discovery, not just coding from the previous plan. Use the brief, current code, UI gaps, validation failures, and smoke-test results to generate the next todos.
+- If blocked by credentials or external services, document the blocker in the app/docs/tests and continue with another real, non-fake improvement.
 
 ## Source of Truth
 - Read `HACKATHON_BRIEF.md` first.
@@ -26,11 +36,22 @@ Keep the current working MVP as the foundation and improve it over roughly 6 hou
 
 ## Iteration Quality Bar
 Each major iteration should:
+- Start by creating or updating todos based on fresh research/inspection.
 - Improve user-visible value or judge-visible completeness.
 - Keep customer and merchant flows connected.
 - Preserve end-to-end flow: context detection -> offer generation -> accept/decline -> QR/token -> redemption -> merchant analytics.
 - Improve evidence, privacy clarity, or UX comprehension where possible.
 - Run validation before committing.
+
+## Research Expectations
+During the 6-hour loop, repeatedly research and inspect:
+- The hackathon brief and judging criteria.
+- Current app gaps versus the required modules.
+- Relevant implementation files and smoke-test coverage.
+- Live-data honesty and fake-fallback risks.
+- UX clarity for the first 3 seconds of an offer.
+- Merchant-side usefulness and supply-side completeness.
+- Privacy/GDPR messaging and local-only boundaries.
 
 ## Validation Before Each Commit
 Before each major commit:
