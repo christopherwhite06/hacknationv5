@@ -772,6 +772,10 @@ const server = http.createServer(async (req, res) => {
         json(res, 400, { error: "username, email and password are required" });
         return;
       }
+      if (accounts.has(body.email)) {
+        json(res, 409, { error: "An account already exists for this email." });
+        return;
+      }
 
       const profile = {
         username: body.username,
