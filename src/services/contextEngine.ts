@@ -138,6 +138,18 @@ export const buildContextState = async (
       : topMerchant
         ? `${topMerchant.name} has no reliable live opening-hours tag in OSM`
         : "No merchant opening status available";
+  const eventAdapterConfigured = scenarioConfig.scenario === "egham";
+  const eventEvidenceLabel = events[0]?.title || (eventAdapterConfigured
+    ? "No live event in range"
+    : `No configured event adapter for ${scenarioConfig.city}`);
+  const eventEvidenceSource = eventAdapterConfigured
+    ? scenarioConfig.signalSources.event
+    : `Config needed: no local event adapter for ${scenarioConfig.city}`;
+  const eventVisibleReason = events[0]
+    ? `Live local event signal: ${events[0].title}`
+    : eventAdapterConfigured
+      ? "No live local events found near the active area"
+      : `No local event adapter is configured for ${scenarioConfig.city}`;
 
   return {
     merchants,
@@ -167,7 +179,7 @@ export const buildContextState = async (
           ? `${topDemand.source === "payone_demo" ? "Demo Payone density" : "Payone density"} is ${topDemandDeltaPercent ?? 0}% ${topDemandDirection} baseline (${topDemand.currentTransactionsPerHour}/${topDemand.baselineTransactionsPerHour} tx/hour)`
           : "Payone demand is not connected, so no demand signal was inferred",
         topOpenReason,
-        events[0] ? `Live local event signal: ${events[0].title}` : "No live local events found near the active area",
+        eventVisibleReason,
         `${time.minutesAvailable} minutes available in the ${time.window} window`
       ],
       sourceEvidence: [
@@ -191,8 +203,8 @@ export const buildContextState = async (
         },
         {
           category: "event",
-          label: events[0]?.title || "No live event in range",
-          source: scenarioConfig.signalSources.event,
+          label: eventEvidenceLabel,
+          source: eventEvidenceSource,
           status: events.length ? "live" : "not_configured"
         },
         {
