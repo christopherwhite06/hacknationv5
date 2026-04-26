@@ -1610,6 +1610,7 @@ export default function App() {
               const result = await scanBusinessEvents(merchant, merchant.rules[0]);
               setEventScanResult(result);
               setEventIntelligence(await fetchBusinessEventIntelligence(merchant.id));
+              return result;
             }}
           />
         )}
@@ -3690,7 +3691,7 @@ function MerchantScreen({
     maxAutoDiscountPercent?: number;
   }) => Promise<void>;
   onSaveRule: (rule: MerchantRule) => Promise<void>;
-  onScanEvents: () => Promise<void>;
+  onScanEvents: () => Promise<BusinessEventScanResult>;
 }) {
   const { styles } = useThemeKit();
   const rule = useMemo(() => merchant.rules[0] || merchantRuleDraftFor(merchant), [merchant]);
@@ -3878,8 +3879,12 @@ function MerchantScreen({
             setScanBusy(true);
             setEventStatus("Scanning live local events...");
             try {
-              await onScanEvents();
-              setEventStatus("Live event scan complete.");
+              const result = await onScanEvents();
+              setEventStatus(
+                result.sourceUrl.startsWith("not_configured://")
+                  ? "Event scan complete: city adapter config needed, so no events were invented."
+                  : "Live event scan complete."
+              );
             } catch (caught) {
               setEventStatus(caught instanceof Error ? caught.message : "Event scan failed.");
             } finally {
