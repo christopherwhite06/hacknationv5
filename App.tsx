@@ -3375,6 +3375,7 @@ function OfferScreen({
   const privacyLabel = offer.generationEvidence.privacy.toLowerCase().includes("abstract")
     ? "Privacy: abstract intent only"
     : "Privacy: local-only";
+  const proofSummary = `${offer.generationEvidence.merchantRule} · ${dealSourceLabel} · ${privacyLabel}`;
 
   return (
     <>
@@ -3392,6 +3393,7 @@ function OfferScreen({
         </View>
         <Text style={styles.offerBody}>{offer.body}</Text>
         <Text style={styles.offerBody}>Why now: {primaryReason}</Text>
+        <Text style={styles.offerBody}>Proof: {proofSummary}</Text>
         <View style={styles.factGrid}>
           <View style={styles.fact}>
             <Text style={styles.factText} numberOfLines={1}>{dealSourceLabel}</Text>
