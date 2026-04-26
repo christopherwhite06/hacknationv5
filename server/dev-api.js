@@ -776,6 +776,7 @@ const generatedOffer = (body) => {
     ruleId: rule.id,
     couponCode: code,
     cashbackCents,
+    expiresAt,
     dailyRedemptionCap: Number(rule.dailyRedemptionCap || 0),
     generatedAt: new Date().toISOString()
   });
@@ -1086,6 +1087,10 @@ const server = http.createServer(async (req, res) => {
       }
       if (Number(body.cashbackCents || 0) !== Number(offerRecord.cashbackCents || 0)) {
         json(res, 409, { error: "Cashback amount does not match the generated offer." });
+        return;
+      }
+      if (Date.parse(offerRecord.expiresAt) <= Date.now()) {
+        json(res, 410, { error: "Generated offer has expired." });
         return;
       }
       const dailyRedemptionCap = Number(offerRecord.dailyRedemptionCap || 0);
