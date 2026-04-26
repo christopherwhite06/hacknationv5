@@ -10,6 +10,7 @@ const royalHollowayPoint = { latitude: 51.42565, longitude: -0.56306 };
 
 const merchantRules = new Map();
 const generatedOffers = new Map();
+const declinedOffers = new Set();
 
 const analytics = new Map();
 const redemptions = new Map();
@@ -1044,6 +1045,17 @@ const server = http.createServer(async (req, res) => {
         json(res, 400, { error: "Offer decline requires merchantId and offerId." });
         return;
       }
+      const offerRecord = generatedOffers.get(body.offerId);
+      if (!offerRecord || offerRecord.merchantId !== body.merchantId) {
+        json(res, 404, { error: "Offer decline requires a generated offer from this API instance." });
+        return;
+      }
+      const declineKey = `${body.merchantId}:${body.offerId}`;
+      if (declinedOffers.has(declineKey)) {
+        json(res, 200, merchantAnalytics(body.merchantId));
+        return;
+      }
+      declinedOffers.add(declineKey);
       const current = merchantAnalytics(body.merchantId);
       json(res, 200, updateAnalytics(body.merchantId, { declines: current.declines + 1 }));
       return;

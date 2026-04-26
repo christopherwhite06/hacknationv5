@@ -440,6 +440,10 @@ const main = async () => {
       method: "POST",
       body: JSON.stringify({ merchantId, offerId: offer.id })
     });
+    await requestJson("/offers/decline", {
+      method: "POST",
+      body: JSON.stringify({ merchantId, offerId: offer.id })
+    });
 
     const analytics = await requestJson(`/merchants/${merchantId}/analytics`);
 
