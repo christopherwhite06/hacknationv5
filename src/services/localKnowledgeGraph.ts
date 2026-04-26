@@ -359,7 +359,7 @@ export const recordOfferOutcomeLocally = (
   outcome: "accepted" | "dismissed" | "redeemed"
 ): LocalKnowledgeGraph => {
   const nodeId = `offer:${outcome}:${offerId}`;
-  const relation = outcome === "dismissed" ? "ignored" : "accepted";
+  const relation = outcome === "dismissed" ? "ignored" : outcome === "redeemed" ? "redeemed" : "accepted";
   const weight = outcome === "dismissed" ? 0.4 : outcome === "accepted" ? 0.82 : 1;
 
   if (graph.nodes.some((node) => node.id === nodeId)) {

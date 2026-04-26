@@ -203,7 +203,7 @@ export interface GraphNode {
 export interface GraphEdge {
   from: string;
   to: string;
-  relation: "likes" | "visited" | "ignored" | "accepted" | "near" | "during" | "often_buys" | "avoids" | "scheduled";
+  relation: "likes" | "visited" | "ignored" | "accepted" | "redeemed" | "near" | "during" | "often_buys" | "avoids" | "scheduled";
   weight: number;
 }
 
