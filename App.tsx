@@ -2896,6 +2896,9 @@ function ProfileScreen({
             </Text>
           </TouchableOpacity>
         </View>
+        <Text style={styles.caption}>
+          {authMode === "create" ? "Choose whether this new account is for a customer wallet or merchant dashboard." : "Login uses the account type saved for the email address."}
+        </Text>
 
         <View style={styles.authToggleRow}>
           <TouchableOpacity
@@ -2954,7 +2957,7 @@ function ProfileScreen({
           onPress={onSubmit}
         >
           <Text style={styles.primaryButtonText}>
-            {authMode === "create" ? `Create ${accountTypeLabel} account` : `Login as ${accountTypeLabel}`}
+            {authMode === "create" ? `Create ${accountTypeLabel} account` : "Login"}
           </Text>
         </TouchableOpacity>
 
