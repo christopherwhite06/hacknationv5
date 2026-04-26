@@ -2823,7 +2823,7 @@ function ProfileScreen({
             <Text style={styles.settingValue}>{themeMode === "light" ? "Light" : "Dark"}</Text>
           </TouchableOpacity>
           <View style={styles.settingBlock}>
-            <Text style={styles.ruleLine}>Currency</Text>
+            <Text style={styles.ruleLine}>Currency display</Text>
             <View style={styles.authToggleRow}>
               {currencyOptions.map((option) => (
                 <TouchableOpacity
@@ -2837,6 +2837,7 @@ function ProfileScreen({
                 </TouchableOpacity>
               ))}
             </View>
+            <Text style={styles.caption}>USD/GBP use static demo conversion rates for display only; checkout proof remains amount-in-cents from the generated offer.</Text>
           </View>
           <View style={styles.settingBlock}>
             <Text style={styles.ruleLine}>Browser agent model</Text>
