@@ -57,9 +57,15 @@ const main = async () => {
     const health = await waitForApi();
     const merchantId = `smoke-merchant-${Date.now()}`;
     const userId = `smoke-user-${Date.now()}`;
+    const weatherHealth = health.find((connector) => connector.name === "Open-Meteo weather");
+    const eventHealth = health.find((connector) => connector.name === "Royal Holloway events");
+    const osmHealth = health.find((connector) => connector.name === "OpenStreetMap places");
     const hermesHealth = health.find((connector) => connector.name === "Hermes/Gemini agent");
     const gemmaHealth = health.find((connector) => connector.name === "Local Gemma");
 
+    if (weatherHealth?.status !== "degraded" || eventHealth?.status !== "degraded" || osmHealth?.status !== "degraded") {
+      throw new Error(`Expected unprobed public adapters to be adapter-ready/degraded, got ${JSON.stringify({ weatherHealth, eventHealth, osmHealth })}.`);
+    }
     if (hermesHealth?.status !== "degraded" || gemmaHealth?.status !== "degraded") {
       throw new Error(`Expected AI runtime health to be adapter/degraded until probed live, got ${JSON.stringify({ hermesHealth, gemmaHealth })}.`);
     }

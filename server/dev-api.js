@@ -1218,9 +1218,9 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && path === "/connectors/health") {
       json(res, 200, [
-        { name: "Open-Meteo weather", status: "connected", detail: "Live weather adapter is reachable." },
+        { name: "Open-Meteo weather", status: "degraded", detail: "Adapter is configured; live reachability is checked during each context build, not by this health route." },
         { name: "Google Calendar", status: calendarConnections.size ? "connected" : "not_configured", detail: calendarConnections.size ? "Routine cold-start sync is active." : "Connect Calendar to cold-start schedule habits." },
-        { name: "Royal Holloway events", status: "connected", detail: "Public local events are fetched only for active points near Egham/Royal Holloway; other cities show no event signal until their adapter is configured." },
+        { name: "Royal Holloway events", status: "degraded", detail: "Adapter-ready for active points near Egham/Royal Holloway; other cities show no event signal until their adapter is configured." },
         {
           name: "Payone density",
           status: demoDemandEnabled ? "degraded" : "not_configured",
@@ -1235,7 +1235,7 @@ const server = http.createServer(async (req, res) => {
             ? "Demo merchant rules are enabled so the end-to-end merchant supply loop can be tested locally."
             : "No demo merchant campaign rules are enabled."
         },
-        { name: "OpenStreetMap places", status: "connected", detail: "Nearby businesses are loaded from OpenStreetMap Overpass." },
+        { name: "OpenStreetMap places", status: "degraded", detail: "Adapter is configured; nearby businesses are requested from Overpass during live context loading." },
         {
           name: "Hermes/Gemini agent",
           status: "degraded",
