@@ -132,7 +132,4 @@ export const syncGoogleCalendar = (userId: string, accessToken?: string) =>
 
 export const exportKnowledgeGraph = async (graph: LocalKnowledgeGraph) => graph;
 
-export const deleteKnowledgeGraph = () =>
-  requestJson<{ deleted: true }>("/privacy/graph", {
-    method: "DELETE"
-  });
+export const deleteKnowledgeGraph = async () => ({ deleted: true as const });
