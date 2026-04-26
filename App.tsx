@@ -2407,6 +2407,9 @@ function DemoJourneyScreen({
 }) {
   const { styles } = useThemeKit();
   const tokenReady = token?.status === "issued" || token?.status === "validated";
+  const offerExpired = offer ? Date.parse(offer.expiresAt) <= Date.now() : false;
+  const canAcceptOffer = Boolean(offer && !offerExpired);
+  const canRedeemToken = Boolean(token?.status === "issued" && Date.parse(token.expiresAt) > Date.now());
   const merchantRule = merchant?.rules[0];
   const blocker =
     liveSetupError ||
@@ -2605,12 +2608,16 @@ function DemoJourneyScreen({
         />
         {offer && (
           <View style={styles.row}>
-            <TouchableOpacity style={styles.primaryButtonFlex} onPress={onAcceptOffer}>
+            <TouchableOpacity
+              style={[styles.primaryButtonFlex, !canAcceptOffer && styles.buttonDisabled]}
+              disabled={!canAcceptOffer}
+              onPress={onAcceptOffer}
+            >
               <Text style={styles.primaryButtonText}>Accept and issue QR</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.secondaryButton, !tokenReady && styles.buttonDisabled]}
-              disabled={!tokenReady}
+              style={[styles.secondaryButton, !canRedeemToken && styles.buttonDisabled]}
+              disabled={!canRedeemToken}
               onPress={onRedeemOffer}
             >
               <Text style={styles.secondaryButtonText}>Redeem token</Text>
