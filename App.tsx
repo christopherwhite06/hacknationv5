@@ -943,7 +943,7 @@ export default function App() {
       }
       setAgentStatus(
         graphPaused
-          ? "Checkout token issued; private graph use is paused, so the accepted offer was not written to local memory."
+          ? "Checkout token issued; private graph use is paused, so the accepted offer was not written to local graph memory."
           : "Checkout token issued; accepted outcome was recorded in local-only graph memory."
       );
       setScreen("qr");
@@ -972,7 +972,7 @@ export default function App() {
       }
       setAgentStatus(
         graphPaused
-          ? "Checkout validated; private graph use is paused, so redemption was not written to local memory."
+          ? "Checkout validated; private graph use is paused, so redemption was not written to local graph memory."
           : "Checkout validated; redeemed outcome was recorded in local-only graph memory."
       );
     } catch (caught) {
@@ -995,7 +995,7 @@ export default function App() {
       }
       setAgentStatus(
         graphPaused
-          ? "Offer dismissed; private graph use is paused, so the decline was not written to local memory."
+          ? "Offer dismissed; private graph use is paused, so the decline was not written to local graph memory."
           : "Offer dismissed; aggregate analytics updated and local-only graph memory recorded the outcome."
       );
       setOffer(undefined);
@@ -4736,7 +4736,7 @@ function KnowledgeGraphScreen({
             onPress={async () => {
               const nextPaused = !graphPaused;
               await onPauseGraph(nextPaused);
-              setPrivacyStatus(nextPaused ? "Private graph use is paused; Spark will not read or write local memory." : "Private graph use is active again.");
+              setPrivacyStatus(nextPaused ? "Private graph use is paused; Spark will not read or write local graph/home memory." : "Private graph use is active again.");
             }}
           >
             <Text style={styles.primaryButtonText}>{graphPaused ? "Resume graph" : "Pause graph"}</Text>
