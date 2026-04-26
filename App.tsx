@@ -3071,6 +3071,11 @@ function MapSurface({
   const simulatedDragStart = useRef<GeoPoint | undefined>(undefined);
   const center = userPoint ?? merchant?.location;
   const hasRealOrSimulatedUserPoint = Boolean(userPoint);
+  const activeLocationDescription = locationSource === "gps"
+    ? "Current GPS position"
+    : locationSource === "simulated"
+      ? "Simulated scenario position"
+      : "Selected map test location";
 
   const initialRegion = useMemo<Region | undefined>(
     () => center
@@ -3298,7 +3303,7 @@ function MapSurface({
         >
           {homePoint && <Marker coordinate={homePoint} title="Home" />}
           {hasRealOrSimulatedUserPoint && userPoint && !simulatedTravelEnabled && (
-            <Marker coordinate={userPoint} title="You" description={locationSource === "simulated" ? "Simulated position" : "Current GPS position"}>
+            <Marker coordinate={userPoint} title={locationSource === "gps" ? "You" : "Test location"} description={activeLocationDescription}>
               <View style={styles.currentLocationMarker}>
                 <View style={styles.currentLocationHalo} />
                 <View style={styles.currentLocationDot} />
