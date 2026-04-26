@@ -3447,6 +3447,15 @@ function RedemptionScreen({
   onRedeem: () => void;
 }) {
   const { styles } = useThemeKit();
+  let qrProofPreview = "not available";
+  let qrContainsUserId = false;
+  try {
+    const parsedPayload = JSON.parse(token.qrPayload) as { proof?: string; userId?: string };
+    qrProofPreview = parsedPayload.proof ? `${parsedPayload.proof.slice(0, 10)}...` : "missing";
+    qrContainsUserId = Boolean(parsedPayload.userId);
+  } catch {
+    qrProofPreview = "invalid payload";
+  }
 
   return (
     <>
@@ -3459,6 +3468,10 @@ function RedemptionScreen({
         <Text style={styles.muted}>Coupon code: {token.couponCode}</Text>
         <Text style={styles.muted}>Status: {token.status}</Text>
         <Text style={styles.muted}>Cashback: {formatMoney(offer.cashbackCents, currency)}</Text>
+        <Text style={styles.muted}>QR proof: {qrProofPreview}</Text>
+        <Text style={styles.muted}>
+          QR privacy: {qrContainsUserId ? "contains user ID - check failed" : "no user ID in scanned payload"}
+        </Text>
       </View>
 
       <TouchableOpacity style={styles.primaryButton} onPress={onRedeem}>
