@@ -126,7 +126,7 @@ For the full judge-day checklist, see `DEMO_RUNBOOK.md`.
 - **Interaction location**: the generated offer appears as a popup over Google Maps and can also be opened as a full wallet card.
 - **Addressing style**: the offer uses generated situational framing based on the live context.
 - **First 3 seconds**: merchant, distance, product, cashback, and expiry are visible in compact facts.
-- **Ending state**: accept creates a QR token only before offer expiry, redemption confirms cashback, and dismiss updates analytics without breaking the wallet flow.
+- **Ending state**: accept creates a QR token only before offer expiry, expired accept/redeem actions are blocked in the UI, redemption confirms cashback, and dismiss updates analytics without breaking the wallet flow.
 - **Closed loop**: the demo must show context detection, offer generation, display, accept or decline, simulated checkout, ledger update, and merchant analytics.
 
 ## Hackathon Submission Guidance
